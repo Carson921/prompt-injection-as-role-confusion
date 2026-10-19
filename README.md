@@ -30,6 +30,32 @@ We recommend starting here rather than cloning the full repo.
 **CoT Forgery demo** - run the attack on a few examples:
 - Download and run `demo/cot-forgery-demo.ipynb`
 
+**Recorded local A100 runs** - execute the role-probe demo with models in
+`/workspace/gpt-oss-20b` and `/workspace/gpt-oss-120b`:
+
+```bash
+uv venv .venv --python 3.12
+uv pip install --python .venv/bin/python --index-strategy unsafe-best-match -r demo/requirements-role-probe-120b-a100.txt
+.venv/bin/python -m ipykernel install --user --name role-probe-uv --display-name 'Role probe (project uv .venv)'
+.venv/bin/python demo/run_role_probe_a100.py
+.venv/bin/python demo/run_role_probe_120b_a100.py
+.venv/bin/python demo/summarize_role_probe_runs.py
+```
+
+Both runs use the same 150 cached training texts and matched cached forgery,
+with local generation and no model API calls. The 20B run uses BF16/eager
+experts; the 120B run keeps MXFP4/Triton experts to fit an A100 80GB, with a
+sampled whole-GPU peak of 76.19 GiB at batch size 2. This backend difference
+must be considered when comparing the models.
+
+The [20B report](demo/outputs/role-probe-a100/report.txt),
+[120B report](demo/outputs/role-probe-120b-a100/report.txt), and
+[comparison plot](demo/outputs/role-probe-120b-a100/comparison.png) include
+results and limitations. Executed notebooks, trained probes, token projections,
+and small plots are committed alongside the reports. Model files, the virtual
+environment, and multi-gigabyte activation checkpoints stay local. These runs
+are demo results, not the full paper evaluation.
+
 All below instructions are only needed for full experiment-by-experiment replication of the paper.
 
 ## 🔨Requirements

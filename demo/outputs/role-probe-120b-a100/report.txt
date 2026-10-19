@@ -1,0 +1,62 @@
+GPT-OSS-120B/A100 角色探针实验报告
+
+完整运行已完成。模型位于 /workspace/gpt-oss-120b，沿用项目的独立 uv venv 和 GPU 0（A100 80GB）。
+
+显存结论
+单卡可以完成本次 MXFP4 实验。NVML 每秒采样峰值约 76.19 GiB，总显存 80.00 GiB。
+PyTorch 峰值分配 64.14 GiB，峰值预留 64.23 GiB。
+仅本地 MXFP4 权重文件约 60.77 GiB；若像 20B 那样全量展开为 BF16，仅专家权重就约 213.57 GiB，因此无法全量放入这张卡。
+本次保留 MXFP4，使用固定版本的 Triton 专家内核、BF16 激活、eager attention、batch_size=2、正文最大 512 token。
+该结论适用于本次短序列和小 batch，不能直接推广为任意上下文或并发规模。
+
+实验设置
+复用 20B 运行缓存的同一批 150 条文本（C4/Dolma3 各75）、同一个缓存伪造文本和问题。
+两模型 tokenizer.json 的 SHA256 完全相同。
+五种角色包装共 750 序列；使用 system/user/cot/assistant 四类探针。
+保留原 demo 的 seed=123、prompt_ix 90/10 划分、L2 logistic regression、C=0.005、max_iter=2000。
+120B 为 36 层，因此按每四层取样并增加中间层18：[0, 4, 8, 12, 16, 18, 20, 24, 28, 32]。
+20B 的示例投影层是12，120B 使用18，各为模型的中间位置；层编号从0开始。
+
+共同绝对层的测试准确率（层号相同不代表相对深度相同）
+  第  0 层: 20B 14.6695%; 120B 13.0908%
+  第  4 层: 20B 28.3917%; 120B 16.5396%
+  第  8 层: 20B 78.3796%; 120B 38.7478%
+  第 12 层: 20B 66.0077%; 120B 35.6924%
+  第 16 层: 20B 87.5504%; 120B 70.6757%
+  第 20 层: 20B 82.9261%; 120B 70.4619%
+
+120B 额外层的测试准确率
+  第 18 层: 71.0205%
+  第 24 层: 63.4527%
+  第 28 层: 61.1454%
+  第 32 层: 64.3707%
+
+同一 user 消息中的平均 CoT 概率
+20B 第12层：普通文本 3.6535%；伪造推理 95.4978%。
+120B 第18层：普通文本 0.0008%；伪造推理 45.9900%。
+120B 第18层双精度探针复核测试准确率：71.0545%。
+120B 本地生成 1490 个 token，耗时 130.15 秒，正常 EOS 结束：True。
+全流程耗时约 17.71 分钟（含模型加载、首次 Triton 编译、激活导出和训练）。未调用付费 API。
+
+解释边界
+20B 使用 BF16/eager 专家后端，120B 使用 MXFP4/Triton 专家后端；因此这并非仅模型规模变化的严格算术后端控制实验。
+原 demo 按角色包装后的 prompt_ix 划分，同一原始文本的不同角色版本可能跨越训练和测试集。
+概率是线性探针的分类输出，不能直接视作攻击成功率；示例也不是完整论文评测。
+具体收敛警告保留在 run.log 和已执行 notebook 中；原始单精度指标完整保留，附带中间层双精度复核。
+
+产物
+role-probe-demo.executed.ipynb：完整执行副本
+metrics.json、memory_stats.json：运行与显存指标
+probe_accuracy.csv、accuracy_comparison.csv：探针准确率及模型对比
+cotness.html、comparison.html：单模型与对比交互图
+comparison.png：对比静态图
+probes.pkl：10层原始训练探针
+middle_probe_float64.pkl、solver_diagnostic.json：第18层双精度复核
+training_hidden_states.pt、training_tokens.parquet：激活及 token 对应关系，用于避免重复导出
+
+再次运行
+/root/prompt-injection-as-role-confusion/.venv/bin/python /root/prompt-injection-as-role-confusion/demo/run_role_probe_120b_a100.py
+从已导出的激活恢复
+/root/prompt-injection-as-role-confusion/.venv/bin/python /root/prompt-injection-as-role-confusion/demo/run_role_probe_120b_a100.py --resume-activations
+
+MXFP4 运行要求参考：https://huggingface.co/docs/transformers/quantization/mxfp4

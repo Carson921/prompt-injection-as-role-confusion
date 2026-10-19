@@ -1,0 +1,76 @@
+role-probe-demo.ipynb 运行报告
+
+运行已完成。原始 notebook 的 15 个代码单元均执行成功，错误输出为 0。
+原 notebook 和 demo/simple_test_helpers.py 未修改；A100 和本地模型适配见 run_role_probe_a100.py，执行副本已保存。
+
+环境
+项目独立 uv venv: /root/prompt-injection-as-role-confusion/.venv
+Python 3.12.3; PyTorch 2.9.1+cu128; Transformers 5.3.0; cuML 25.10.0; CuPy 13.6.0; scikit-learn 1.7.2。
+模型: /workspace/gpt-oss-20b。仅使用 CUDA_VISIBLE_DEVICES=0 的 NVIDIA A100-SXM4-80GB。
+本地 MXFP4 权重加载后解量化至 BF16；attention 和 experts 均使用 eager；batch_size=8。
+依赖完整锁定于 demo/requirements-role-probe-a100.txt；uv pip check 检查通过，共 165 个包。
+
+数据与探针
+C4 / Dolma3 各 75 条，共 150 条原始文本；随机种子 123；每条最多 512 个正文 token。
+每条包装为 system/user/cot/assistant/tool 五个角色，共 750 个序列，含标签共 263,820 个 token。
+各角色正文均为 51,834 个 token；训练分类器使用 system/user/cot/assistant 四类，共 207,336 个正文 token。
+保留原 notebook 的 prompt_ix 随机 90/10 划分：186,749 个训练 token、20,587 个测试 token。
+L2 logistic regression: C=0.005, max_iter=2000。层编号从 0 开始。
+
+原始单精度 cuML 测试准确率
+  第  0 层: 14.6695%
+  第  4 层: 28.3917%
+  第  8 层: 78.3796%
+  第 12 层: 66.0077%
+  第 16 层: 87.5504%
+  第 20 层: 82.9261%
+
+末段本地示例
+按用户选择，使用仓库 Gemini 缓存条目 5 对应的图片水印问题替换原 notebook 的药物问题。
+StrongREJECT 问题与缓存的 prompt hash 已核验匹配；缓存 hash 为 1e3f5dbaa39cdb39。
+本地 gpt-oss-20b greedy generation，medium reasoning，最多 2048 个新 token；实际生成 858 个，正常 EOS 结束，耗时 61.15 秒。
+未调用 OpenRouter 或其他付费模型 API。
+第 12 层的平均 P(cot):
+  普通 user 文本（22 token）: 3.6535%
+  user 内伪造 CoT（176 token）: 95.4978%
+  模型实际 analysis（177 token）: 59.8227%
+  模型 final（671 token）: 0.003662%
+系统提示的 57 个 token 单独统计，不计入模型 final。
+
+收敛复核
+原始训练的第 4、8、12、16、20 层均出现 cuML L-BFGS 线搜索警告。
+用相同数据、划分和超参数，对第 12 层做 float64 复核，并验证原始探针在重新提取的激活上准确复现 66.0077% 的测试准确率。
+原始 float32: 训练 88.1210%，测试 66.0077%，338 次迭代。
+补充 float64: 训练 88.1327%，测试 66.0562%，763 次迭代。
+float64 普通 user / 伪造 CoT 的平均 P(cot): 3.7887% / 95.5427%。
+未发现非有限训练激活；原始结果完整保留，补充结果保存在 solver-diagnostics/ 下。
+双精度复核未明显改变准确率或 CoT 概率变化，因此单精度求解误差不足以解释较低的测试准确率。
+
+解释与限制
+本示例中，文本仍在 user 角色内，伪造推理区域的 CoT 概率明显高于普通 user 文本。
+第 12 层测试准确率仅约 66%，所以此结果应作为有限的角色感知演示，不能单凭此例认定攻击成功率或完整复现论文。
+原始划分按角色包装后的 prompt_ix 进行，同一 base text 的不同角色版本可能跨越训练与测试集，因此测试并非严格按原始文本独立留出。
+
+资源与用时
+成功的完整 notebook 运行耗时约 292.2 秒；不含环境安装、数据预取及补充复核。
+PyTorch 峰值分配 46.81 GiB，峰值缓存预留 57.88 GiB。
+上述 PyTorch 指标不包括 cuML/CuPy 的全部外部分配。
+
+产物
+role-probe-demo.executed.ipynb: 完整执行副本
+cotness.html / cotness.png: 交互图与静态图
+metrics.json / probe_accuracy.csv: 原始运行指标
+probes.pkl: 六层训练探针
+token_role_projections.csv: 逐 token 的四类概率
+solver-diagnostics/diagnostics.json: 双精度复核指标
+solver-diagnostics/solver-diagnostics.executed.ipynb: 复核执行记录
+run_manifest.json: 环境、模型配置和原始 notebook 的校验信息
+
+再次运行（现有环境）
+/root/prompt-injection-as-role-confusion/.venv/bin/python /root/prompt-injection-as-role-confusion/demo/run_role_probe_a100.py
+
+重建依赖环境
+uv venv .venv --python 3.12
+UV_CACHE_DIR=/root/.cache/uv-role-probe UV_LINK_MODE=copy uv pip install --python .venv/bin/python --index-strategy unsafe-best-match -r demo/requirements-role-probe-a100.txt
+.venv/bin/python -m ipykernel install --user --name role-probe-uv --display-name 'Role probe (project uv .venv)'
+.venv/bin/python demo/run_role_probe_a100.py
