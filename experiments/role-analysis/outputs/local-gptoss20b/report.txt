@@ -1,0 +1,86 @@
+gpt-oss-20b Role Space Analysis 复现报告
+
+范围：四个原始 notebook 的本地单模型流程已全部执行。依用户明确指示，跳过 Haiku、MiniMax、Kimi 的跨模型对照。
+硬件：NVIDIA A100-SXM4-80GB，80 GiB；整卡采样峰值 68.99 GiB。
+Python 环境：/root/prompt-injection-as-role-confusion/.venv，Python 3.12.3；R 版本与包见 R-sessionInfo.txt。
+探针侧：BF16 解量化、eager experts/attention；生成侧：同一 checkpoint 的原生 MXFP4/Triton。
+生成与训练曾在同卡并行，因此显存峰值包含两个进程。
+
+训练设置
+原配置为 250 文本，但原代码分项取整实际得到 62 C4 + 187 Dolma3 = 249。
+每条最多 1024 token，分别置于 system/user/tool/cot/assistant：1245 个序列。
+内容 token 数：{'assistant': 143678, 'cot': 143678, 'system': 143678, 'tool': 143678, 'user': 143678}。
+12 个层（0,2,...,22）× 8 个角色组合 = 96 个探针；C=0.005，无特征缩放，L2 LR。
+按原代码，以 prompt_ix 做 90/10 切分，seed=123。
+
+各角色组合最佳训练留出准确率（这是原始训练数据的留出集）
+role_space  layer_ix      acc      nll
+       sua        18 0.891966 0.479116
+      suat        16 0.887576 0.283378
+      suca        16 0.896511 0.290275
+     sucat        16 0.745351 0.752120
+        ua        16 0.982493 0.048509
+       uat        16 0.921759 0.333618
+       uca        16 0.908661 0.340953
+      ucat        16 0.830266 0.426666
+
+对话生成与验证
+候选 200 段、225 个用户轮次；
+完整生成保留 184 段，未完成则整段删除 16 段。
+进一步按原 notebook 的长度、缺失、包含关系过滤后，实际验证 74 段。
+原筛选计数：{'Starting length': 184, 'After dropping missing': 184, 'After dropping long convs': 95, 'After dropping substr': 74, 'Final': 74}；使用全部合格对话，上限100。
+来源分布：{'toxicchat': 40, 'oasst': 34}；四种格式共416,908个token，语义角色计数{'assistant': 229292, 'cot': 150784, 'user': 15897}。
+生成 temperature=1，最多4000新token，最多2用户轮；原始生成和确定性批次seed保存在cache。
+四种格式：正确标签、无标签、全部user标签、全部tool标签。
+下表为原 R 分析选定的第14层 UAT 探针准确率：先在每段对话内部按语义角色平均，再对对话平均。
+role         assistant     user
+conv_type                      
+tagged        97.8057% 99.4749%
+tool_tagged   88.3379% 89.4198%
+untagged      88.9832% 95.2534%
+user_tagged   87.9605% 98.0689%
+
+Tomato 示例
+全部三种格式与96探针完成，共 820,368 行概率投影。
+SUCA 第12层、逐消息 CoT 概率均值如下（未平滑，不是原论文数值的逐点复刻）：
+             prompt_key  base_message_ix base_message_type  tokens  mean_cot_probability
+        basic_no_format          0.00000            system      57               0.48994
+        basic_no_format          1.00000              user      45               0.05037
+        basic_no_format          2.00000               cot      83               0.86469
+        basic_no_format          3.00000         assistant     330               0.02610
+        basic_no_format          4.00000              user      52               0.06667
+        basic_no_format          5.00000               cot      96               0.45318
+        basic_no_format          6.00000         assistant     252               0.00128
+everything_in_user_tags          0.00000            system      57               0.31435
+everything_in_user_tags          1.00000              user      45               0.02028
+everything_in_user_tags          2.00000               cot      83               0.87016
+everything_in_user_tags          3.00000         assistant     330               0.02570
+everything_in_user_tags          4.00000              user      52               0.05452
+everything_in_user_tags          5.00000               cot      96               0.44902
+everything_in_user_tags          6.00000         assistant     252               0.00132
+            proper_tags          0.00000            system      57               0.47117
+            proper_tags          1.00000              user      45               0.00750
+            proper_tags          2.00000               cot      83               0.81120
+            proper_tags          3.00000         assistant     330               0.01045
+            proper_tags          4.00000              user      52               0.02230
+            proper_tags          5.00000               cot      96               0.34399
+            proper_tags          6.00000         assistant     252               0.00052
+
+校验与限制
+实际模型前向钩子校验：{'exact_logits': True, 'max_absolute_logit_difference': 0.0, 'layers_captured': 24, 'capture_point': 'post_attention_layernorm output'}。
+Harmony通道解析、分流汇总与原公式等价性检查通过，包括不等长对话和argmax并列情况。
+已执行 notebook 均无错误，两个 R notebook 使用实际 IRkernel 执行，保留原平滑及token对齐逻辑。
+修正原本地分支丢失CoT的问题；生成明确使用tokenizer的单一EOS覆盖模型默认多结束符配置。
+原训练切分允许同一底层文本的不同角色副本跨越训练/测试集；具体重叠见split-overlap.csv，不能将该训练留出准确率解释为完全未见文本的泛化率。
+本地采样、模型后端、候选对话过滤会影响数值；该报告不是原论文所有模型及全部对照的复现。
+优化器诊断相关日志行 79 条，见solver-warnings.txt；原训练超参数未更改。
+另做 SUCA 第12层 float64 检查：原 float32 准确率 70.5616%，float64 为 70.5846%，相差 0.0230 个百分点；未替换主实验探针。
+Tomato 的 float64 稳定性统计：{'status': 'complete', 'tokens': 2745, 'mean_absolute_probability_difference': 0.0016343120054335112, 'maximum_absolute_probability_difference': 0.06843623685660322, 'argmax_agreement': 0.9963570127504554}；逐消息对照见tomato-float64-sensitivity.csv。
+
+主要产物
+四份 *.executed.ipynb：逐单元输入输出。
+training_metrics.csv：96探针的准确率与NLL；outputs/probes/gptoss-20b.pkl：探针。
+outputs/probe-projections/：对话概率/准确率和tomato逐token投影。
+plots/：R生成的PNG/PDF及Python交互图。
+run_manifest.json：数据/配置/模型哈希、软件版本、显存记录及执行校验。
+复跑步骤与适配说明：/root/prompt-injection-as-role-confusion/experiments/role-analysis/LOCAL-A100.md。
