@@ -1,0 +1,39 @@
+GPT-OSS-120B cached-activation probe tuning / 角色探针调参结果
+
+模型权重继续为冻结的 MXFP4。本轮没有重新运行或修改语言模型，原始72个探针及tomato图保持不变。
+搜索四角色SUCA和五角色SUCAT、第16/20层、标准化开/关、C={.0005,.005,.05,.5,5}。
+两个协议各40个候选，总计80个；按内部验证accuracy、NLL选择，不按测试指标选配置。
+legacy：保留原始prompt级测试划分；原训练集内部按原文分组留15%作验证。
+document：按249篇原文分成199/25/25篇训练/验证/测试；选参后用224篇重新拟合。
+原文分组后，同一篇原文的五个角色版本始终处于同一分区，system样本正常保留。
+两种协议的分数不能直接相减；原协议的测试结果此前已报告，并非全新外部盲测。
+
+protocol role_space  layer  selected_scaling  selected_C  baseline_accuracy  selected_accuracy  gain_percentage_points  baseline_cot_recall  selected_cot_recall  baseline_system_recall  selected_system_recall  original_protocol_best_accuracy  fp64_accuracy  fp64_gain_percentage_points
+  legacy       suca     20              True    0.000500           0.720832           0.718585               -0.224707             0.552978             0.539567                0.652152                0.657553                         0.721045            NaN                          NaN
+  legacy      sucat     20              True    0.005000           0.683348           0.683233               -0.011514             0.449193             0.449193                0.533751                0.533220                         0.688241            NaN                          NaN
+document       suca     20              True    0.000500           0.678256           0.677359               -0.089758             0.554170             0.545225                0.541761                0.544344                         0.721045       0.677249                    -0.011023
+document      sucat     20              True    0.005000           0.678030           0.678042                0.001260             0.500945             0.501197                0.498551                0.498299                         0.688241       0.678093                     0.005039
+
+结论：本轮没有得到稳定的accuracy提升，继续保留原探针；原五角色最佳验证accuracy为68.8241%。
+五角色选中的超参数与默认参数相同，微小分数差异来自相同配置的重复拟合，不属于调参收益。
+document协议FP64相对FP32的四角色变化约-0.0110个百分点、五角色约+0.0050个百分点。
+本次FP64拟合耗时约为对应FP32的11至13倍。结果不支持优先投入更多FP64拟合。
+这一结论限于已测网格和单次内部验证划分，未证明其他数据或特征方案没有提升空间。
+
+baseline在各自选中层上，以C=.005、标准化开启重新拟合；用于隔离参数改动。
+original_protocol_best_accuracy是旧实验最佳层的已报告分数，仅与legacy协议对应。
+FP64仅对document协议已选中的两个配置做精度对照，参数及数据划分均不改变。
+实际classifier、coef和solver dtype均有断言；模型权重精度不受探针FP64影响。
+拟合的训练accuracy和测试accuracy均记录；逐角色召回、macro-F1、NLL、混淆矩阵和优化器警告见final/*.json。
+消费者接口以每个角色32个测试token检查，见consumer_validation.json。
+
+selected-probes.pkl：四个按验证集选择的FP32探针（两种协议各两个）。
+models/：对应baseline、selected和FP64诊断探针，兼容原utils.probes.run_projections接口。
+search_metrics.csv、validation-search.png：全部候选的内部验证结果。
+final_metrics.csv、comparison.csv、test-comparison.png：重新拟合后的测试结果。
+splits.json、config.json：精确划分、随机种子、超参数及来源哈希。
+
+复现：HF_HOME=/root/.cache/huggingface-role-probe .venv/bin/python experiments/role-analysis/tune_gptoss120b_probes.py
+验证及报告：CUDA_VISIBLE_DEVICES=3 .venv/bin/python experiments/role-analysis/summarize_probe_tuning.py
+所需缓存：原训练activations/layer-16.f16、layer-20.f16及training_{inputs,labels}.parquet。
+环境沿用requirements-local-4xa40.txt；激活和临时拟合日志不提交Git。
