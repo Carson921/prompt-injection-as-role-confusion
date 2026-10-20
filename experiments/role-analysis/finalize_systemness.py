@@ -51,10 +51,10 @@ def main():
         ax.axhline(90,color='grey',linestyle='--',linewidth=.8)
         ax.set(ylim=(0,103),ylabel=title+' (%)')
         ax.spines[['top','right']].set_visible(False)
-    axes[0].legend(frameon=False,ncol=2)
+    fig.legend(*axes[0].get_legend_handles_labels(),loc='upper center',bbox_to_anchor=(.55,.96),frameon=False,ncol=2)
     axes[-1].set_xticks(x,labels,rotation=15,ha='right')
     fig.suptitle('GPT-OSS-120B MXFP4 | systemness on held-out native inputs')
-    fig.tight_layout()
+    fig.tight_layout(rect=[0,0,1,.93])
     for suffix in ['png','pdf']:fig.savefig(plots/f'systemness-comparison.{suffix}',dpi=180)
     plt.close(fig)
 
@@ -139,6 +139,7 @@ def main():
         '语言模型权重保持冻结，特征提取使用四张A40。输入为第16/20/24层归一化前残差的拼接。',
         'system作为正常训练类别保留，训练/指标均不计入header和结构tag token。',
         '新C4原文1800篇：1200训练、200验证、400测试；排除原249篇和上轮100篇正文的精确SHA256重复。',
+        'C4 multi是按预先固定的角色协议、用原文切片构造的多消息输入，不是模型新生成的自然对话。',
         '四组对照：249或1200篇 × 单消息或单消息加多轮。另在相同文档划分内加入最长1024 token的正文。',
         '数据/上下文消融图固定使用同一线性读出设置C=.005、system权重1；同时也报告每组验证集选中的最佳读出。',
         '训练每篇/每角色/每种profile最多32个均匀抽取内容token；验证最多64个；native测试保留全部内容token。',
@@ -159,15 +160,17 @@ def main():
         '树分类器使用原始缓存特征，不做缩放；比较五分类树，以及独立system二分类树与固定四类条件线性读出的组合。',
         f'选中：{selected["candidate"]}；system阈值：{selected["system_threshold"]:.8f}。',
         'system_precision/recall/F1是固定阈值的二分类指标；role_recall_system与accuracy使用五分类argmax，二者不能混称。','',
+        'macro-F1按实际出现的类别平均；自然对话没有tool正文，因此不把不同profile的macro-F1当作相同分布直接比较。','',
         '选中模型的独立测试结果（全部native格式）',summary.to_string(index=False,float_format=lambda v:f'{v:.6f}'),'',
         '相对基线的system F1变化（95%配对分块bootstrap）',
         gains.reset_index().to_string(index=False,float_format=lambda v:f'{v:.6f}'),'',
         '全部放入user标签时的system误报：真实结构角色为user，原始system-like文字只作语义标记。',
-        negatives[['model','profile','groups','tokens','system_false_positive_rate']].to_string(index=False,float_format=lambda v:f'{v:.6f}'),'',
+        negatives[['model','profile','groups','tokens','accuracy','system_false_positive_rate']].to_string(index=False,float_format=lambda v:f'{v:.6f}'),'',
+        '上述accuracy是全部user包装下的结构角色准确率，可能与原始消息功能的语义投影明显不同；system误报下降不代表其他角色混淆已解决。',
         '未加tag的文本只保存消息功能投影，不报告结构角色准确率。没有把原始system样式标签当成user包装下的真实结构角色。',
         '置信区间使用2000次配对bootstrap：C4按原文，自然对话按system提示模板聚类；不是token独立抽样。',
         'test-metrics.csv记录全部模型和格式；paired-test-comparisons.csv记录分组区间；system-by-position.csv显示长system信号衰减。',
-        'plots/gallery-index.md提供12段不同对话、三种格式共36张四面板图，全部144段测试对话都纳入数值评估。','',
+        'plots/gallery-index.md提供12段不同对话、三种格式共36张五面板图（包含tool概率），全部144段测试对话都纳入数值评估。','',
         '阶段目标检查（precision、recall及balanced accuracy分别>=90%，不等同于用户最终验收）',
         json.dumps(checks,ensure_ascii=False,indent=2),'',
         '复现顺序（HF_HOME=/root/.cache/huggingface-role-probe，ROLE_ANALYSIS_LOAD_PATH=/dev/shm/role-analysis-gptoss120b）：',
@@ -181,6 +184,16 @@ def main():
         '依赖见requirements-systemness.txt。安装时为UV_CACHE_DIR和PIP_CACHE_DIR指定可访问的本地缓存目录。',
     ]
     (output/'report.txt').write_text('\n'.join(report)+'\n')
+    data.atomic_json(output/'validation-progress.json',dict(stage='evaluation_complete',
+        completed_candidates=candidate_count,selection_frozen=True,test_predictions_started=True,
+        current_best=selected['candidate'],working_targets_all_met=all(all(r[k] for k in r if k!='profile') for r in checks)))
+    data.atomic_json(output/'status.json',dict(stage='evaluation_complete',selected_candidate=selected['candidate'],
+        test_c4_documents=400,test_natural_conversations=144,independent_test_predictions_complete=True))
+    snapshot=output/'validation-summary.txt'
+    if snapshot.exists():
+        value=snapshot.read_text().replace('当前尚无独立测试分数，测试激活提取正在运行。',
+             '模型冻结时未查看测试分数；下表保留验证阶段快照，完整独立测试结果见report.txt和test-metrics.csv。')
+        snapshot.write_text(value)
     archive=output/'gptoss-120b-systemness-results.tar.gz'
     with tarfile.open(archive,'w:gz',compresslevel=6) as tar:
         for path in sorted(output.rglob('*')):

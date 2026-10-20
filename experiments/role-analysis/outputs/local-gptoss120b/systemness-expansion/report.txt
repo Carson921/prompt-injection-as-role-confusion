@@ -1,0 +1,103 @@
+GPT-OSS-120B MXFP4：扩大数据、上下文覆盖与systemness探针实验
+
+语言模型权重保持冻结，特征提取使用四张A40。输入为第16/20/24层归一化前残差的拼接。
+system作为正常训练类别保留，训练/指标均不计入header和结构tag token。
+新C4原文1800篇：1200训练、200验证、400测试；排除原249篇和上轮100篇正文的精确SHA256重复。
+C4 multi是按预先固定的角色协议、用原文切片构造的多消息输入，不是模型新生成的自然对话。
+四组对照：249或1200篇 × 单消息或单消息加多轮。另在相同文档划分内加入最长1024 token的正文。
+数据/上下文消融图固定使用同一线性读出设置C=.005、system权重1；同时也报告每组验证集选中的最佳读出。
+训练每篇/每角色/每种profile最多32个均匀抽取内容token；验证最多64个；native测试保留全部内容token。
+无tag或user包装中，跨越原消息边界的少量BPE token语义归属不明确，因此不纳入投影或计分。
+自然对话来自仓库现有GPT-OSS-20B生成数据，40段验证、144段测试；这些不是新生成的120B回答。
+长文本64篇是400篇C4测试集的子集；新system措辞是同144段自然对话的配对变体，不能重复计为新增独立文档/对话。
+自然对话的消息正文每条截取前192 token，因此结果不代表任意长度的完整会话。
+32种新system措辞只进入测试；原自然对话使用8种措辞，因此system召回的不确定性按措辞分组估计。
+C4是同一固定验证分片的新增原文，不是所有领域的跨来源泛化结论；仅精确正文、完整正文和URL重复已检查。
+
+选择过程
+四组数据设置先各比较4个线性配置、PCA-512/1024、MLP-64/128和分层MLP-128，共36个；再在large-mixed追加GPU树分类器、词汇控制与幅度/方向分离读出，全轮共48个候选。
+词汇控制读出比较移除16/64/128个相关方向的线性模型，以及移除64个方向的MLP。
+词汇方向仅使用训练集单消息/长正文的五角色同词配对样本与冻结token embedding估计，固定投影折叠进读出的第一层权重。推断不额外使用token ID、tag或真实角色。
+幅度/方向读出仅使用当前token的三层残差：结合原始值、各层RMS归一化方向和三个log RMS幅度；所有缩放统计量只拟合训练部分。
+分类阈值和候选只使用四种内部验证profile；每个profile的system误报率约束<=5%，最大化平均system F1。
+同时要求平均五角色验证accuracy不低于上轮三层探针超过1个百分点。基线也用相同验证规则校准阈值。
+分层分类器先建模system/非system，再建模其余四类；MLP属于非线性读出，不能把其收益全部归因于线性可分性。
+树分类器使用原始缓存特征，不做缩放；比较五分类树，以及独立system二分类树与固定四类条件线性读出的组合。
+选中：large-mixed-mlp-h64；system阈值：0.65625253。
+system_precision/recall/F1是固定阈值的二分类指标；role_recall_system与accuracy使用五分类argmax，二者不能混称。
+
+macro-F1按实际出现的类别平均；自然对话没有tool正文，因此不把不同profile的macro-F1当作相同分布直接比较。
+
+选中模型的独立测试结果（全部native格式）
+              profile  groups  tokens  system_precision  system_recall  system_f1  system_balanced_accuracy  system_false_positive_rate  accuracy  role_recall_system  role_recall_cot
+               single     400  364170          0.806311       0.710451   0.755352                  0.833893                    0.042666  0.843093            0.766345         0.775599
+                multi     400  145152          0.981672       0.950562   0.965867                  0.974013                    0.002535  0.973676            0.960703         0.962109
+              natural     144   64294          0.885996       0.994245   0.937005                  0.994793                    0.004659  0.811398            0.994245         0.613594
+          long-single      64  151245          0.739714       0.615756   0.672067                  0.780794                    0.054167  0.784839            0.689808         0.765777
+natural-unseen-system     144   66470          0.972228       0.986697   0.979409                  0.992341                    0.002015  0.814503            0.991432         0.602300
+
+相对基线的system F1变化（95%配对分块bootstrap）
+              profile wrapper    metric  groups  bootstrap_units resampling_unit  baseline  selected  gain_percentage_points  ci95_low  ci95_high
+               single  native system_f1     400              400 source-document  0.457412  0.755352               29.793960 27.491970  32.116814
+                multi  native system_f1     400              400 source-document  0.601761  0.965867               36.410591 34.312997  38.514667
+              natural  native system_f1     144                8 system-template  0.614738  0.937005               32.226704 27.203641  37.622318
+          long-single  native system_f1      64               64 source-document  0.469914  0.672067               20.215342 12.695587  27.770361
+natural-unseen-system  native system_f1     144               32 system-template  0.566988  0.979409               41.242118 34.643886  48.348549
+
+全部放入user标签时的system误报：真实结构角色为user，原始system-like文字只作语义标记。
+            model               profile  groups  tokens  accuracy  system_false_positive_rate
+previous-selected               natural     144   63951  0.436256                    0.028616
+         selected               natural     144   63951  0.141874                    0.011900
+previous-selected natural-unseen-system     144   66132  0.450266                    0.028020
+         selected natural-unseen-system     144   66132  0.156626                    0.021744
+
+上述accuracy是全部user包装下的结构角色准确率，可能与原始消息功能的语义投影明显不同；system误报下降不代表其他角色混淆已解决。
+未加tag的文本只保存消息功能投影，不报告结构角色准确率。没有把原始system样式标签当成user包装下的真实结构角色。
+置信区间使用2000次配对bootstrap：C4按原文，自然对话按system提示模板聚类；不是token独立抽样。
+test-metrics.csv记录全部模型和格式；paired-test-comparisons.csv记录分组区间；system-by-position.csv显示长system信号衰减。
+plots/gallery-index.md提供12段不同对话、三种格式共36张五面板图（包含tool概率），全部144段测试对话都纳入数值评估。
+
+阶段目标检查（precision、recall及balanced accuracy分别>=90%，不等同于用户最终验收）
+[
+  {
+    "profile": "single",
+    "system_precision_ge_90": false,
+    "system_recall_ge_90": false,
+    "system_balanced_accuracy_ge_90": false
+  },
+  {
+    "profile": "multi",
+    "system_precision_ge_90": true,
+    "system_recall_ge_90": true,
+    "system_balanced_accuracy_ge_90": true
+  },
+  {
+    "profile": "natural",
+    "system_precision_ge_90": false,
+    "system_recall_ge_90": true,
+    "system_balanced_accuracy_ge_90": true
+  },
+  {
+    "profile": "long-single",
+    "system_precision_ge_90": false,
+    "system_recall_ge_90": false,
+    "system_balanced_accuracy_ge_90": false
+  },
+  {
+    "profile": "natural-unseen-system",
+    "system_precision_ge_90": true,
+    "system_recall_ge_90": true,
+    "system_balanced_accuracy_ge_90": true
+  }
+]
+
+复现顺序（HF_HOME=/root/.cache/huggingface-role-probe，ROLE_ANALYSIS_LOAD_PATH=/dev/shm/role-analysis-gptoss120b）：
+1. systemness_data.py；systemness_challenges.py
+2. systemness_extract.py --part development；--part augmentation（CUDA_VISIBLE_DEVICES=0,1,2,3）
+3. systemness_probes.py --stage search；systemness_boosting.py；systemness_lexical.py --prepare-embedding；systemness_lexical.py；systemness_radial.py；systemness_probes.py --stage select
+4. systemness_extract.py --part test；--part challenge（四卡）
+5. systemness_evaluate.py --part test；--part challenge；--gallery（单卡）
+6. finalize_systemness.py
+
+所有脚本位于experiments/role-analysis/，使用.venv/bin/python运行。结果包不含基础模型权重、激活、原文和临时训练缓存。
+依赖见requirements-systemness.txt。安装时为UV_CACHE_DIR和PIP_CACHE_DIR指定可访问的本地缓存目录。

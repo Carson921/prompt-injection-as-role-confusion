@@ -179,12 +179,12 @@ def plot_gallery():
     out=data.OUT/'plots/gallery'
     out.mkdir(parents=True,exist_ok=True)
     colors=dict(system='#90a1b9',user='#00a6f4',cot='#fd9a00',assistant='#00d492',tool='#a855f7')
-    names=dict(system='Systemness',user='Userness',cot='CoTness',assistant='Asstness')
+    names=dict(system='Systemness',user='Userness',cot='CoTness',assistant='Asstness',tool='Toolness')
     for group_id in chosen:
         for wrapper,title in [('native','Correct tags'),('all-user','Everything in user tags'),('no-tags','No tags')]:
             subset=rows[(rows.group_id==group_id)&(rows.wrapper==wrapper)].sort_values('token_ix')
             ix=subset.index.to_numpy()
-            fig,axes=plt.subplots(4,1,figsize=(9,5),sharex=True)
+            fig,axes=plt.subplots(5,1,figsize=(9,6),sharex=True)
             for i,role in enumerate(names):
                 ax=axes[i]
                 for source_role in colors:
@@ -209,7 +209,7 @@ def plot_gallery():
             plt.close(fig)
     data.atomic_json(data.OUT/'gallery.json',dict(conversations=chosen,formats=['native','all-user','no-tags'],
             selection='12 equally spaced conversation IDs; no accuracy-based example selection',png=36,pdf=36,
-            all_144_conversations_in_metrics=True))
+            panels=5,all_144_conversations_in_metrics=True))
 
 
 if __name__=='__main__':
