@@ -1,0 +1,14 @@
+GPT-OSS-120B training-objective pilot (fit/validation only)
+
+Four independent GPU workers use the same 1200 fit documents, cached residual features, train-only standardization, MLP-64, seed, optimizer, dropout, and complete validation set.
+Only the loss changes: ERM, mean group CE, group-balanced focal loss (gamma=2), or a regularized Group DRO variant (step .01, half-uniform mixture).
+Groups are training profile x role x quartile of sampled message positions. Group labels are never inference inputs.
+Each candidate is early-stopped using the weaker of single-message and long-message system F1; thresholds retain the original single-global-threshold calibration rule.
+None met the predeclared promotion criteria. Neither balanced weighting, focal loss nor this Group DRO configuration improved both weak profiles over matched ERM by the required amount.
+This is evidence about these exact configurations; it does not establish that all robust objectives are ineffective.
+The original 48-candidate selected model and independent test results remain unchanged. No test samples were read.
+Implementation checks cover finite nonzero gradients and ERM/balanced equivalence for equally sized groups. Exported CPU predictions match actual validation features within the recorded tolerance.
+The first launch failed before training because a full-matrix finite check created oversized CUDA temporaries. Bounded chunk checks fixed it; attempt-history.json preserves the prior plan. All four fits then completed successfully.
+
+Methods: https://arxiv.org/abs/1911.08731 ; https://arxiv.org/abs/1708.02002
+See validation-metrics.csv, complete.json, and candidates/*.json for all numbers and histories.
