@@ -1,0 +1,20 @@
+Full 1200-document local-attention readout comparison (validation only)
+
+Frozen GPT-OSS-120B native MXFP4 model; four A40s. Feature layers 16/20/24 are sliding-attention layers with a 128-token window.
+All candidates use the same original 1200 fit documents and complete validation partition. Standardization is fitted only on fit rows.
+No test inputs, labels or new confirmation samples were used. The original 48-candidate published benchmark is unchanged.
+
+Candidate           single F1  multi F1  natural F1  long F1  mean F1
+linear-C0.0005       0.804714  0.976923  0.954578  0.740262  0.869119
+linear-C0.005        0.818438  0.975689  0.930233  0.751788  0.869037
+mlp-h64              0.841117  0.984583  0.962747  0.771577  0.890006
+mlp-h128             0.843971  0.985022  0.957416  0.765538  0.887986
+
+Selected: mlp-h64; common system threshold: 0.555444444444444.
+Mean validation system F1: 0.854447 -> 0.890006.
+Minimum single/long F1 gain vs previous selection: 0.035861.
+Passed the predeclared validation promotion criteria. New 400-document confirmation is required before claiming independent-test improvement.
+The adjacent global-attention layers (17/21/25) are being compared separately on matched pilot data. Sliding attention cannot directly access a header outside its window; residual states can still retain earlier information.
+Inference remains pointwise. No role/header labels, token IDs, positional metadata or history smoothing are inference inputs.
+CuML linear solver warnings, if any, are in ignored local logs; all published exports passed actual-hidden-feature CPU probability checks.
+Natural-dialogue validation five-role accuracy tradeoff: 0.807684 -> 0.786606; CoT recall 0.595153 -> 0.541734. The systemness improvement does not imply all five roles improved.
