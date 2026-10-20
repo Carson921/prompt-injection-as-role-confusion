@@ -1,0 +1,43 @@
+GPT-OSS-120B tomato 角色投影图
+
+沿用 config/tomato.yaml 中 20B 的固定对话内容，在 120B 上重新计算激活和
+探针概率；未重新生成或改写对话。原文、token、消息边界与既有 20B 结果逐项一致。
+三种输入：No tags、Everything in user tags、Correct tags。
+长度分别为 917、921、953 tokens，完整输入均保留，无截断。
+
+模型沿用本轮训练的官方 SHA256 校验权重缓存，专家权重为 MXFP4；
+四张 A40 上运行，跨 GPU 数据经 CPU 中转。前向 hook 不改变 logits。
+全部 72 个已训练探针生成 615,276 行逐 token 概率，通过数值、归一化、
+唯一键检查。完整数据包含 system 消息和含 system 的角色组合。
+
+图使用原 04-tomato-probe-results.ipynb 的 R 代码，保留原配色、字体、
+尺寸、token 筛选、消息片段标签和平滑方式。四角色探针空间为 suca。
+- ../plots/layer-12/：与 20B 原图相同的零基第 12 层；主要对应结果。
+- ../plots/layer-16/：36 层 120B 模型的一个已训练中层，作为补充。
+各目录有 10 张 PNG 和 10 个 PDF：三种格式的四面板散点图及折线图，
+CoT 单图、两格式对照和三格式对照。四面板含 Systemness/Userness/CoTness/Asstness。
+原散点图按 20B 代码省略 system 文本片段，但保留 Systemness 投影面板；
+完整逐 token 数据仍包含 system 文本。
+
+第 16 层在这段多轮对话中的 CoT 概率明显低于第 12 层，输出保留实际预测。
+逐消息统计见 cotness-by-message.csv；图像不代表新的训练或验证准确率。
+原训练的优化器警告及验证划分说明仍见 ../training_report.txt。
+
+复现（仓库根目录；原 Python 训练环境；R 4.3.3）：
+  apt-get update
+  apt-get install -y --no-install-recommends r-base-core r-cran-tidyverse r-cran-ggtext r-cran-systemfonts r-cran-zoo r-cran-jsonlite fonts-texgyre
+  HF_HOME=/root/.cache/huggingface-role-probe CUDA_VISIBLE_DEVICES=0,1,2,3 ROLE_ANALYSIS_LOAD_PATH=/dev/shm/role-analysis-gptoss120b .venv/bin/python experiments/role-analysis/run_tomato_gptoss120b.py
+缓存准备方法见 ../cache_checkpoint.py 和 ../checkpoint-cache-verification.json。
+首轮加载因默认 HF_HOME 指向阻塞的 /workspace 而终止；最终运行改用上述本地缓存。
+仅重新绘图：
+  .venv/bin/python experiments/role-analysis/run_tomato_gptoss120b.py --stage plot
+
+数据与记录：
+- ../../probe-projections/tomato-role-projections-gptoss-120b.csv.gz：完整概率。
+- inputs.json、inputs.parquet、tokens.parquet、labels.parquet：输入及消息标签。
+- selected_projections.csv：两套图使用的原始概率。
+- aligned-comparison-layer-12.csv、aligned-comparison-layer-16.csv：对齐后的三格式对照。
+- manifest.json、model_backend.json、extraction.json：输入校验和实际模型后端。
+- projection_validation.json、complete.json：概率校验、输出清单和 SHA256。
+- R-sessionInfo.txt、R-plot-warnings.csv：R 环境及绘图警告。
+- adapted-notebook-layer-12.R、adapted-notebook-layer-16.R：实际执行的原 notebook 绘图代码。
