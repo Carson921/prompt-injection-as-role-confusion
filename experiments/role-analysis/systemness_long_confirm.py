@@ -1,6 +1,7 @@
-"""Confirm three frozen pointwise probes on 400 general + 64 full-length sources.
+"""Confirm a final validation-selected pointwise readout and two frozen controls.
 
-Preparation requires all validation selections to exist. Nothing runs by default;
+The cohort has 400 general + 64 additional full-length source documents.
+Preparation requires the final validation selection to exist. Nothing runs by default;
 use --stage explicitly, or --preflight for temporary CPU-only fault fixtures.
 Only probabilities are cached during the shared four-A40 native MXFP4 forward.
 """
@@ -27,6 +28,7 @@ import systemness_probes as probes
 
 OUT = long_data.OUT / 'confirmation'
 CACHE = data.CACHE / 'long-full-confirmation'
+FINAL_SELECTION = data.runtime.OUT / 'systemness-final-readout/selection.json'
 NAMES = ['residual', 'base-attention', 'selected']
 PROFILES = ['single', 'multi', 'long-single', 'long-full']
 SPECS = dict(data.SPECS, **attention.SPECS)
@@ -50,7 +52,8 @@ def same(actual, expected, label):
 
 def plan():
     value = read_json(long_data.OUT / 'confirmation-plan.json')
-    expected = dict(general_documents=400, additional_full_length_documents=64,
+    expected = dict(protocol_version=2, final_selection='systemness-final-readout/selection.json',
+        general_documents=400, additional_full_length_documents=64,
         independent_source_documents=464, general_long_subset_documents=64,
         full_length_profile='long-full', full_length_body_tokens=1024,
         source_revision='1588ec454efa1a09f29cd18ddd04fe05fc8653a2',
@@ -64,12 +67,13 @@ def plan():
 def selections():
     sources = {'residual': data.OUT / 'selection.json',
         'base-attention': attention.OUT / 'selection.json',
-        'selected': long_data.OUT / 'selection.json'}
+        'selected': FINAL_SELECTION}
     records = {name: read_json(path) for name, path in sources.items()}
     require(all(r.get('test_used_for_selection') is False for r in records.values()),
             'All readouts must be frozen using validation only before preparation.')
     same(records['base-attention']['candidate'], 'mlp-h64', 'Published attention control')
-    require(type(records['selected'].get('promoted')) is bool, 'Primary promotion flag is missing.')
+    require(type(records['selected'].get('promoted')) is bool,
+            'Final readout experiment validation promotion flag is missing.')
     paths = {'residual': data.OUT / 'models/selected.npz',
         **{name: Path(records[name]['model_path']) for name in NAMES[1:]}}
     thresholds = {name: float(records[name]['system_threshold']) for name in NAMES}
@@ -631,7 +635,7 @@ def plots(rows, probabilities, thresholds, positions):
     folder.mkdir(exist_ok=True)
     colors = dict(system='#90a1b9', user='#00a6f4', cot='#fd9a00', assistant='#00d492', tool='#a855f7')
     labels = ['Systemness', 'Userness', 'CoTness', 'Asstness', 'Toolness']
-    titles = ['Residual control', 'Published attention control', 'Validation-selected readout']
+    titles = ['Residual control', 'Published attention control', 'Final validation-selected readout']
     documents = sorted(rows[rows.profile == 'multi'].document_id.unique())
     chosen = [int(documents[i]) for i in np.linspace(0, len(documents) - 1, min(12, len(documents)), dtype=int)]
     for doc in chosen:
@@ -697,11 +701,11 @@ def report():
     pd.DataFrame(comparisons).to_csv(OUT / 'paired-comparisons.csv', index=False)
     pd.DataFrame(intervals).to_csv(OUT / 'bootstrap-metrics.csv', index=False)
     lines = ['Frozen three-readout confirmation: 464 independent C4 source documents', '',
-        f'Validation-selected primary: {frozen["primary_candidate"]}; validation promotion flag: {frozen["primary_validation_promoted"]}.',
+        f'Final validation-selected pointwise primary: {frozen["primary_candidate"]}; its experiment validation promotion flag: {frozen["primary_validation_promoted"]}.',
         '400 general sources; 64 up-to1024 long variants are paired subsets, not extra independent documents.',
         '64 additional, mutually disjoint source bodies contain exactly 1024 actual content tokens in each of five native role versions.',
         'All system tags retained. Frozen native MXFP4 model on four A40s; one shared forward, pointwise readouts.',
-        'Three models and their original global validation thresholds were frozen before confirmation preparation.',
+        'The final validation-selected pointwise readout, both controls and their global validation thresholds were frozen before confirmation preparation.',
         'No model or threshold is re-selected from this confirmation, including when validation promotion was false.',
         'Prior known source lines/URLs and exact full/body/prefix hashes excluded; original249 lacks URL/line metadata.',
         'No semantic near-duplicate, domain-disjointness or new natural-dialogue claim.',
