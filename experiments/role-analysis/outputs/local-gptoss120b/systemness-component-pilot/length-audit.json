@@ -1,0 +1,313 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-20T23:00:55.961698+00:00",
+  "purpose": "Audit genuine long-body coverage before planning a new pointwise systemness training augmentation. No test-body inspection or accuracy claims from new confirmation.",
+  "read_only_computation": true,
+  "output_files_only": [
+    "length-audit.json",
+    "full-length-cohort.csv"
+  ],
+  "gpu_work_started": false,
+  "source": {
+    "dataset": "allenai/c4",
+    "configuration": "en",
+    "split": "validation",
+    "revision": "1588ec454efa1a09f29cd18ddd04fe05fc8653a2",
+    "shard": "en/c4-validation.00000-of-00008.json.gz",
+    "local_archive": "experiments/role-analysis/outputs/local-gptoss120b/feature-search/fresh/cache/c4-validation.json.gz",
+    "archive_sha256": "1f25b6af12da84115301d4ee93ea5246c8fea5bb4a2008472794d95b917cc97f",
+    "parsed_source_documents": 1400,
+    "parsed_splits": [
+      "fit",
+      "validation"
+    ],
+    "test_source_lines_parsed": 0,
+    "all_full_body_hashes_matched_manifest": true,
+    "all_1024_truncated_body_hashes_matched_manifest": true
+  },
+  "tokenizer": {
+    "load_path": "/dev/shm/role-analysis-gptoss120b",
+    "local_files_only": true,
+    "add_special_tokens": false,
+    "tokenizer_json_sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+    "config_sha256": "933aeb666a3fd851133ddd7686414f369bc564c4185fb5704416550879f10566",
+    "verified_weights_manifest_sha256": "07b9cfe5ed2bbb9efb8ca166447d92293557588067be1f7feb41f78da7000e52",
+    "transformers_version": "5.3.0",
+    "tokenizers_version": "0.22.2",
+    "numpy_version": "2.2.6",
+    "pandas_version": "2.3.3"
+  },
+  "method": {
+    "raw_token_count": "len(tokenizer.encode(original_source_text, add_special_tokens=False)); original_source_text is parsed only for fit/validation source lines.",
+    "full_length_eligibility": "raw token_count >=1024; use first 1024 source tokens and decode with skip_special_tokens=False; match original body_sha256.",
+    "prior_long_cohort": "Unique document_id values in existing fit/validation rows where profile == long-single; all original long rows retained in the audit.",
+    "body_position": "Zero-based body_offset = token_ix - first scored body token_ix within each prompt. The existing uniform sampling includes the first and last content tokens.",
+    "tail": "body_offset from 512 through 1023 inclusive, true system rows only; original training cap32 and validation cap64 content tokens per role/prompt.",
+    "probability_alignment": "Existing validation probability sample_ix arrays equal the validation rows in order. Pilot and full-attention validation sample_ix arrays match exactly.",
+    "thresholds": "Use each previously frozen candidate validation system threshold; no threshold retuning for tail calculations.",
+    "independent_unit": "Original source document; sampled tokens and five role versions are dependent observations.",
+    "body_text_persisted": false
+  },
+  "coverage": [
+    {
+      "split": "fit",
+      "group": "all_original_documents",
+      "documents": 1200,
+      "raw_tokens_min": 96,
+      "raw_tokens_median": 302.0,
+      "capped_tokens_mean": 415.46416666666664,
+      "token_count_bins": {
+        "lt256": 521,
+        "from256_to511": 322,
+        "from512_to1023": 225,
+        "ge1024": 132
+      }
+    },
+    {
+      "split": "fit",
+      "group": "existing_long_cohort",
+      "documents": 200,
+      "raw_tokens_min": 97,
+      "raw_tokens_median": 357.0,
+      "capped_tokens_mean": 447.56,
+      "token_count_bins": {
+        "lt256": 73,
+        "from256_to511": 59,
+        "from512_to1023": 42,
+        "ge1024": 26
+      }
+    },
+    {
+      "split": "fit",
+      "group": "eligible_full_length",
+      "documents": 132,
+      "raw_tokens_min": 1024,
+      "raw_tokens_median": 1530.0,
+      "capped_tokens_mean": 1024.0,
+      "token_count_bins": {
+        "lt256": 0,
+        "from256_to511": 0,
+        "from512_to1023": 0,
+        "ge1024": 132
+      }
+    },
+    {
+      "split": "fit",
+      "group": "new_eligible_excluding_existing_long",
+      "documents": 106,
+      "raw_tokens_min": 1024,
+      "raw_tokens_median": 1530.0,
+      "capped_tokens_mean": 1024.0,
+      "token_count_bins": {
+        "lt256": 0,
+        "from256_to511": 0,
+        "from512_to1023": 0,
+        "ge1024": 106
+      }
+    },
+    {
+      "split": "validation",
+      "group": "all_original_documents",
+      "documents": 200,
+      "raw_tokens_min": 99,
+      "raw_tokens_median": 329.0,
+      "capped_tokens_mean": 443.845,
+      "token_count_bins": {
+        "lt256": 84,
+        "from256_to511": 55,
+        "from512_to1023": 30,
+        "ge1024": 31
+      }
+    },
+    {
+      "split": "validation",
+      "group": "existing_long_cohort",
+      "documents": 50,
+      "raw_tokens_min": 101,
+      "raw_tokens_median": 277.5,
+      "capped_tokens_mean": 456.88,
+      "token_count_bins": {
+        "lt256": 23,
+        "from256_to511": 11,
+        "from512_to1023": 6,
+        "ge1024": 10
+      }
+    },
+    {
+      "split": "validation",
+      "group": "eligible_full_length",
+      "documents": 31,
+      "raw_tokens_min": 1076,
+      "raw_tokens_median": 1352.0,
+      "capped_tokens_mean": 1024.0,
+      "token_count_bins": {
+        "lt256": 0,
+        "from256_to511": 0,
+        "from512_to1023": 0,
+        "ge1024": 31
+      }
+    },
+    {
+      "split": "validation",
+      "group": "new_eligible_excluding_existing_long",
+      "documents": 21,
+      "raw_tokens_min": 1087,
+      "raw_tokens_median": 1352.0,
+      "capped_tokens_mean": 1024.0,
+      "token_count_bins": {
+        "lt256": 0,
+        "from256_to511": 0,
+        "from512_to1023": 0,
+        "ge1024": 21
+      }
+    }
+  ],
+  "training_tail": {
+    "profile": "long-single",
+    "role": "system",
+    "body_offset_start": 512,
+    "body_offset_end": 1023,
+    "scored_tokens": 739,
+    "independent_documents": 68,
+    "all_fit_rows_denominator": 413290,
+    "fraction_of_all_fit_rows": 0.0017880906869268552,
+    "all_long_fit_documents": 200,
+    "all_long_fit_system_rows": 6400
+  },
+  "validation_tail": {
+    "profile": "long-single",
+    "role": "system",
+    "body_offset_start": 512,
+    "body_offset_end": 1023,
+    "scored_tokens": 438,
+    "independent_documents": 16,
+    "document_ids": [
+      6,
+      8,
+      65,
+      84,
+      152,
+      167,
+      182,
+      191,
+      210,
+      220,
+      225,
+      227,
+      271,
+      293,
+      401,
+      423
+    ],
+    "all_long_validation_documents": 50,
+    "all_long_validation_system_rows": 3200,
+    "models": [
+      {
+        "model": "pilot-residual",
+        "fit_documents": 200,
+        "frozen_validation_threshold": 0.7316394843657812,
+        "tail_system_true_positive": 149,
+        "tail_system_false_negative": 289,
+        "tail_system_recall": 0.3401826484018265,
+        "candidate_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/candidates/residual.json",
+        "candidate_sha256": "62d40feab9403430985b65642a8a32004f3521f816f2cb7ecab0ce9dcadf9c55",
+        "model_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/models/residual.npz",
+        "model_sha256": "dfc62dc97fe035b66dd6d9382d8548d75cff6f396063b666c2619fa472dade5c",
+        "validation_probabilities_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/cache/component-pilot/residual-validation.npz",
+        "validation_probabilities_sha256": "749c4db3833ad6a69971ec8489b85f9349bd1400f4ac5b61e8ae864bdd998868"
+      },
+      {
+        "model": "pilot-attention",
+        "fit_documents": 200,
+        "frozen_validation_threshold": 0.6512121212121212,
+        "tail_system_true_positive": 149,
+        "tail_system_false_negative": 289,
+        "tail_system_recall": 0.3401826484018265,
+        "candidate_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/candidates/attention.json",
+        "candidate_sha256": "0d923323b702b1163ff657c6140facfe561af4ca1fe8ef8a8e403ca92464a324",
+        "model_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/models/attention.npz",
+        "model_sha256": "f6948f1312a110543e12b67431851d6b4424c4771fd0c3ca5645dc516c0039d1",
+        "validation_probabilities_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/cache/component-pilot/attention-validation.npz",
+        "validation_probabilities_sha256": "1b313b966000d3afe8cfe80668288f8edef3c473648eb47d85658b99c3d53ed9"
+      },
+      {
+        "model": "full-attention-mlp-h64",
+        "fit_documents": 1200,
+        "frozen_validation_threshold": 0.5554444444444444,
+        "tail_system_true_positive": 198,
+        "tail_system_false_negative": 240,
+        "tail_system_recall": 0.4520547945205479,
+        "candidate_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-attention/candidates/mlp-h64.json",
+        "candidate_sha256": "ff0efe45166a499e0029bad6385dee44849a15e9823ffa10af031b59c011ed7e",
+        "model_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-attention/models/mlp-h64.npz",
+        "model_sha256": "e88b0d488d4963eb548079bc2db18895a522f47a90a651b3ec6759d5dc675db5",
+        "validation_probabilities_path": "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/cache/attention/mlp-h64-validation.npz",
+        "validation_probabilities_sha256": "ecfe4e8c017757ca4d1204099b7b1b496b444bc1bbe01ad4c6a713a182ddb064"
+      }
+    ],
+    "limitation": "This tail has only 16 independent source documents and 438 sampled system tokens; it is not 50 independent 1024-token documents or a fresh confirmation set."
+  },
+  "full_length_cohort": {
+    "path": "full-length-cohort.csv",
+    "sha256": "f4245ba9c441bef6406e173fe263fcebc6c1d6aed12a2e8ed48374beed15e87a",
+    "rows": 163,
+    "selection": "All eligible original fit/validation documents, stable order by split then document_id; no label, model score or original test content used.",
+    "columns": [
+      "document_id",
+      "split",
+      "shard_line",
+      "token_count",
+      "capped_length",
+      "old_long_cohort"
+    ],
+    "fit_documents": 132,
+    "validation_documents": 31,
+    "existing_full_length_fit_documents": 26,
+    "new_fit_documents_excluding_existing_long_cohort": 106,
+    "existing_full_length_validation_documents": 10,
+    "new_validation_documents_excluding_existing_long_cohort": 21
+  },
+  "architecture": {
+    "config_sha256": "933aeb666a3fd851133ddd7686414f369bc564c4185fb5704416550879f10566",
+    "sliding_window": 128,
+    "existing_local_attention_layers": {
+      "16": "sliding_attention",
+      "20": "sliding_attention",
+      "24": "sliding_attention"
+    },
+    "neighboring_global_attention_layers": {
+      "17": "full_attention",
+      "21": "full_attention",
+      "25": "full_attention"
+    },
+    "limitation": "Adjacent-layer comparisons also change depth; they do not isolate attention-window effects."
+  },
+  "recommendation": {
+    "status": "Proposal only; this audit does not create training inputs or fit models.",
+    "fit_selection": "Use all 132 eligible fit documents. The existing split cannot supply 200 independent 1024-token source bodies; 106 eligible documents are new to long-fit and 26 already have sparse long-fit rows.",
+    "fit_sampling": "Consider 256 uniformly spaced content tokens per role in each full 1024-token body, with the same five-role body versions and normal system tags. Deduplicate or replace prior sparse rows for the 26 overlaps.",
+    "validation": "Report the 31 eligible full-length validation documents and 512+ position metrics explicitly. They remain validation subsets, not fresh confirmation.",
+    "confirmation": "Freeze model and threshold before an additional independent, genuinely full-length test cohort; retain all existing published benchmark protocols."
+  },
+  "input_artifact_sha256": {
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/document-keys.json": "7375b9ea40a87f39d587424a0a7ff0a5267768b3fab1b9cbdf3b251856769797",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/plan.json": "5318551204c6eb158e98a6c0d232d31806d6c99131b62031b1a24918fb7d9c48",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/supplement-data-complete.json": "aa6fde3fc1b8998d746d8ecb49924b8def28d1ed9b31d4ab0d9c43ae0cdb3702",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/cache/attention/rows.parquet": "0cc190eab31bca6fea671f1f70907499ac3aa5887af030ec6e7223770c61c90d",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-expansion/cache/component-pilot/rows.parquet": "6c9e355ac7f6773660425249f0140119ad0524c969eabba5335328e0b2c5041e",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-attention/extraction-complete.json": "b25a944cffc1c7612fc4d2c929bd3ade801ef4fdf4f80447707177e93082ca9a",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/capture-complete.json": "3b53a8b137a34d866554b74a366b4447a5a8c3d968cb41a7a81c0111f003dab1",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-component-pilot/cache-retirement.json": "774db77fa111b0e1f1ea40eac92369dd4a73691bb10d253a84bd538d8dc7d76a",
+    "experiments/role-analysis/outputs/local-gptoss120b/systemness-attention/selection.json": "1c8f2bb754e60c6b3a568845d83ea792a2c7c62fe6f60ef42fe898a076fe77f3"
+  },
+  "source_code_sha256": {
+    "systemness_data.py": "de6b38c0bdc80e05783eb14aeb3a4d14fcf09c2c046fdf4756f90f6b1d3dcd9a",
+    "systemness_challenges.py": "5a7f57c45979da29a070501e8444fcf707743d227f87d5f9f516f2228aa66e10",
+    "systemness_components.py": "6072ab70cd1eda32172eac6bb83cc11b8625b99fa66eed5223c13d9845157dca",
+    "systemness_probes.py": "59bacbf87d72a86af216e51ea12c20717da90b09f05a66d4b7d4b79668560c15",
+    "systemness_attention.py": "c126ce1a63d06b32789fea454067a80626807b126d7465d62c04b0eb274290ec",
+    "systemness_attention_probes.py": "de4483726f91437edc553bfd92cdc89807bb1b91d127787a1d1653e0dff57b14",
+    "run_local_gptoss120b.py": "0f3098052a2ad4a1d5d08c06fcf4bff1bd43fa9bd4ee3517df2c439799556406",
+    "feature_pipeline_runtime.py": "72e2bc2699ac828f455b51e8c9a3f6071f65f9c5eddd3d5c964ca21413b1cee2"
+  }
+}

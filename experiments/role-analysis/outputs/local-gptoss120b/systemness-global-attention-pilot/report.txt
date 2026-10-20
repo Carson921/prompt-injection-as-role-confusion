@@ -1,0 +1,14 @@
+Matched local/global attention pilot (validation only)
+
+Same200 fit source documents, same complete validation rows and same C=.005 linear scaler/solver. Native MXFP4 frozen; four A40s.
+Local layers16/20/24 vs adjacent global layers17/21/25, zero based. Captured after attention output projection and before residual addition.
+Attention type and depth both change, so this does not isolate a causal effect of window size. Residual states can carry earlier header information.
+
+Feature    single F1  multi F1  natural F1  long F1  mean F1
+local     0.754725  0.952961  0.964654  0.707103  0.844860
+global    0.741267  0.902824  0.824341  0.711495  0.794982
+
+Mean F1 gain: -0.049879; failed predeclared promotion criteria.
+At body offsets512–1023 of the original long validation:16 source documents,438 sampled system tokens; global181/438 (41.32%), local linear149/438 (34.02%), full local MLP198/438 (45.21%).
+No independent confirmation samples were read. This one global layer triple was not selected for full expansion.
+Next hypothesis is data coverage: only26 of the previous200 long fit documents reach1024 tokens. All132 eligible fit documents are now prepared with256 samples per role;31 full validation documents use128. Old sparse long fit rows are replaced in the dense readout. These are the same source documents, not new independent training documents.

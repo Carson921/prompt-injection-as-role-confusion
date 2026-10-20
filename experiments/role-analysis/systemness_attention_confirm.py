@@ -6,6 +6,7 @@ cached; the large hidden-state arrays are discarded after each inference batch.
 import argparse
 import gzip
 import json
+import os
 from pathlib import Path
 import time
 
@@ -34,6 +35,54 @@ def selections():
     return paths,thresholds
 
 
+def verify_frozen(metadata=None):
+    """Bind every stage to the models and thresholds frozen before confirmation."""
+    paths,thresholds=selections()
+    frozen=dict(selection_sha256=data.digest(attention.OUT/'selection.json'),
+        models={name:data.digest(path) for name,path in paths.items()},thresholds=thresholds)
+    if metadata is not None:
+        for key,value in frozen.items():
+            if metadata.get(key)!=value:
+                raise RuntimeError(f'Frozen confirmation {key} changed; refusing to reuse this confirmation set.')
+    return paths,thresholds,frozen
+
+
+def inference_signature(metadata):
+    checkpoint=os.environ.get('ROLE_ANALYSIS_LOAD_PATH')
+    if not checkpoint:
+        raise RuntimeError('Set ROLE_ANALYSIS_LOAD_PATH to the verified model checkpoint before confirmation inference.')
+    dependencies=['systemness_components.py','feature_pipeline_runtime.py','run_local_gptoss120b.py',
+        'systemness_extract.py','systemness_attention.py','systemness_data.py','systemness_probes.py',
+        'systemness_evaluate.py']
+    return dict(data_sha256=data.digest(OUT/'data-complete.json'),models=metadata['models'],
+        specs=SPECS,batch_size=8,model_path=str(Path(checkpoint)),
+        verified_weights_sha256=data.digest(Path(checkpoint)/'verified-weights.json'),
+        dependency_sha256={name:data.digest(data.HERE/name) for name in dependencies})
+
+
+def open_probabilities(names,row_count,*,require_existing=False,readonly=False):
+    paths={name:CACHE/f'{name}-probabilities.f32' for name in names}
+    expected_size=row_count*5*np.dtype(np.float32).itemsize
+    # Check every file before creating any of them: old progress must never be
+    # combined with a newly initialized, empty probability array.
+    for path in paths.values():
+        if require_existing and not path.is_file():
+            raise RuntimeError(f'Probability file missing: {path}; refusing to resume saved progress.')
+        if path.exists() and path.stat().st_size!=expected_size:
+            raise RuntimeError(f'Probability file has incorrect size: {path}; refusing to reuse saved progress.')
+    return {name:np.memmap(path,mode='r' if readonly else 'r+' if path.exists() else 'w+',
+        dtype=np.float32,shape=(row_count,5)) for name,path in paths.items()}
+
+
+def validate_probabilities(probabilities,block_size=65536):
+    for name,values in probabilities.items():
+        for start in range(0,len(values),block_size):
+            block=values[start:start+block_size]
+            if not (np.isfinite(block).all() and (block>=0).all() and (block<=1).all()
+                    and np.allclose(block.sum(axis=1),1,atol=2e-5)):
+                raise RuntimeError(f'Invalid or unwritten {name} probabilities in rows {start}:{start+len(block)}.')
+
+
 def parse_labels(ids,tok):
     special={s:tok.convert_tokens_to_ids(s) for s in ['<|start|>','<|message|>','<|end|>','<|return|>','<|call|>']}
     active=None;header=[];in_header=False;actual={}
@@ -52,13 +101,13 @@ def parse_labels(ids,tok):
 
 
 def prepare():
-    paths,thresholds=selections()
     OUT.mkdir(exist_ok=True);CACHE.mkdir(exist_ok=True)
     if (OUT/'data-complete.json').exists():
         meta=json.loads((OUT/'data-complete.json').read_text())
+        verify_frozen(meta)
         assert all(data.digest(CACHE/name)==sha for name,sha in meta['cache_sha256'].items())
-        assert meta['selection_sha256']==data.digest(attention.OUT/'selection.json')
         return
+    paths,thresholds,frozen=verify_frozen()
     protocol=json.loads((attention.OUT/'confirmation-plan.json').read_text())
     archive=data.runtime.OUT/'feature-search/fresh/cache/c4-validation.json.gz'
     assert data.digest(archive)==protocol['source_sha256']
@@ -152,9 +201,9 @@ def prepare():
         original_source_units=400,rows=len(entries),inputs=len(inputs),input_tokens=sum(r['length'] for r in inputs),
         all_content_tokens_scored=True,independent_native_label_parser_all_passed=True,
         all_prior_lines_bodies_prefixes_and_urls_excluded=True,semantic_near_duplicates_not_checked=True,
-        source_sha256=data.digest(__file__),selection_sha256=data.digest(attention.OUT/'selection.json'),
+        source_sha256=data.digest(__file__),selection_sha256=frozen['selection_sha256'],
         confirmation_plan_sha256=data.digest(attention.OUT/'confirmation-plan.json'),
-        models={name:data.digest(path) for name,path in paths.items()},thresholds=thresholds,
+        models=frozen['models'],thresholds=thresholds,
         cache_sha256={name:data.digest(CACHE/name) for name in ['inputs.parquet','rows.parquet','token-ids.json']}))
 
 
@@ -164,21 +213,26 @@ def infer():
     from types import SimpleNamespace
     import feature_pipeline_runtime as pipeline
     from systemness_extract import Prompts,collate
-    paths,thresholds=selections();metadata=json.loads((OUT/'data-complete.json').read_text())
+    metadata=json.loads((OUT/'data-complete.json').read_text())
+    paths,thresholds,_=verify_frozen(metadata)
     assert all(data.digest(CACHE/name)==sha for name,sha in metadata['cache_sha256'].items())
     assert metadata['source_sha256']==data.digest(__file__)
     rows=pd.read_parquet(CACHE/'rows.parquet');inputs=pd.read_parquet(CACHE/'inputs.parquet')
     tokens=json.loads((CACHE/'token-ids.json').read_text())
-    signature=dict(data_sha256=data.digest(OUT/'data-complete.json'),models=metadata['models'],specs=SPECS,batch_size=8)
+    signature=inference_signature(metadata)
     if (OUT/'inference-complete.json').exists():
-        assert json.loads((OUT/'inference-complete.json').read_text())['signature']==signature
+        complete=json.loads((OUT/'inference-complete.json').read_text())
+        assert complete['signature']==signature
+        probabilities=open_probabilities(paths,len(rows),require_existing=True,readonly=True)
+        assert all(data.digest(CACHE/f'{name}-probabilities.f32')==sha
+                   for name,sha in complete['probability_sha256'].items())
+        validate_probabilities(probabilities)
         return
     progress_path=CACHE/'progress.json';start_batch=0;written=0
     if progress_path.exists():
         progress=json.loads(progress_path.read_text());assert progress['signature']==signature
         start_batch=progress['next_batch'];written=progress['rows_written']
-    probabilities={name:np.memmap(CACHE/f'{name}-probabilities.f32',mode='r+' if (CACHE/f'{name}-probabilities.f32').exists() else 'w+',
-        dtype=np.float32,shape=(len(rows),5)) for name in paths}
+    probabilities=open_probabilities(paths,len(rows),require_existing=progress_path.exists())
     nets={name:probes.load_model(path) for name,path in paths.items()}
     for name,(_,_,_,meta) in nets.items():assert meta['feature_spec']==(data.SPECS if name=='residual' else attention.SPECS)
     runtime=data.runtime
@@ -222,7 +276,10 @@ def infer():
                     data.atomic_json(OUT/'status.json',record);print(json.dumps(record),flush=True)
         finally:pipeline.install_hooks=original
     assert written==len(rows)
-    assert metadata['models']=={name:data.digest(path) for name,path in paths.items()}
+    verify_frozen(metadata)
+    assert inference_signature(metadata)==signature,'Confirmation dependencies changed during inference.'
+    for value in probabilities.values():value.flush()
+    validate_probabilities(probabilities)
     data.atomic_json(OUT/'inference-complete.json',dict(rows=written,signature=signature,
         source_sha256=data.digest(__file__),seconds=time.time()-started,raw_hidden_states_not_persisted=True,
         probability_sha256={name:data.digest(CACHE/f'{name}-probabilities.f32') for name in paths}))
@@ -282,9 +339,15 @@ def plots(rows,probabilities,thresholds,metrics):
 
 
 def report():
-    paths,thresholds=selections();rows=pd.read_parquet(CACHE/'rows.parquet')
+    metadata=json.loads((OUT/'data-complete.json').read_text())
+    paths,thresholds,_=verify_frozen(metadata)
+    assert metadata['source_sha256']==data.digest(__file__)
+    assert all(data.digest(CACHE/name)==sha for name,sha in metadata['cache_sha256'].items())
+    rows=pd.read_parquet(CACHE/'rows.parquet')
     inference=json.loads((OUT/'inference-complete.json').read_text())
-    probabilities={name:np.memmap(CACHE/f'{name}-probabilities.f32',mode='r',dtype=np.float32,shape=(len(rows),5)) for name in paths}
+    assert inference['signature']==inference_signature(metadata)
+    probabilities=open_probabilities(paths,len(rows),require_existing=True,readonly=True)
+    validate_probabilities(probabilities)
     metrics=[];docs=[];messages=[]
     for name,p in probabilities.items():
         assert data.digest(CACHE/f'{name}-probabilities.f32')==inference['probability_sha256'][name]
@@ -327,8 +390,9 @@ def report():
     plots(rows,probabilities,thresholds,metrics)
     targets={r['profile']:all(r[k]>=.9 for k in ['system_precision','system_recall','system_balanced_accuracy'])
              for r in metrics if r['model']=='attention'}
+    verify_frozen(metadata)
     data.atomic_json(OUT/'complete.json',dict(documents=400,long_subset=64,models=inference['signature']['models'],
-        selection_sha256=data.digest(attention.OUT/'selection.json'),thresholds=thresholds,
+        selection_sha256=metadata['selection_sha256'],thresholds=thresholds,
         source_sha256=data.digest(__file__),tests_used_for_tuning=False,targets=targets,
         all_profiles_meet_90_percent_target=all(targets.values()),bootstrap_unit='source document',
         report_sha256=data.digest(OUT/'report.txt')))

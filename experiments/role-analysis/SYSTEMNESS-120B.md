@@ -46,7 +46,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 **后续改进试验：验证结果**
 
-注意力/MLP 分支试验对四种特征使用相同的 200 篇训练原文及完整原验证集。直接注意力输出在单消息上的 system F1 为 75.47%，相同规模残差对照为 66.27%；长正文为 70.71% 对 64.50%。注意力特征达到试验前固定的晋级标准，正在扩大到全部 1200 篇训练原文。这里是验证收益，不能当作新增独立测试收益。
+注意力/MLP 分支试验对四种特征使用相同的 200 篇训练原文及完整原验证集。直接注意力输出在单消息上的 system F1 为 75.47%，相同规模残差对照为 66.27%；长正文为 70.71% 对 64.50%。注意力特征达到试验前固定的晋级标准，已扩大到全部 1200 篇训练原文。这里是验证收益，不能当作新增独立测试收益。
 
 - [分支试验报告](outputs/local-gptoss120b/systemness-component-pilot/report.txt)
 - [分支完整验证指标](outputs/local-gptoss120b/systemness-component-pilot/validation-metrics.csv)
@@ -58,8 +58,23 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 后续仍可尝试：在现有同正文多角色数据上增加显式配对损失、增加独立长正文和困难负例、细分误差后补充真实 system 提示与上下文。新增模型应先仅用验证集确定，再增加至少 400 篇与既有 fit/validation/test 按正文、完整原文和 URL 去重的新原文作确认。旧测试指标保留为已报告基准，不重新包装为独立确认。训练组别、真实角色和标签不作为推断输入。
 
 
-模型配置核对发现：当前 attention 特征的 16/20/24 层均为 128-token 窗口的局部注意力层，而相邻的 17/21/25 层是全局注意力层。200 篇原文试验中，长正文超过 512 token 后的验证 system recall 两种特征均为 34.02%，整体 F1 提高尚未解决远距离位置。因此，下一项优先对照是全局注意力层，之后可检查输出投影前的头级特征（4096 维，而投影后为 2880 维）。这是待验证的假设；残差仍能传递更早的角色信息，局部窗口不能单独解释全部误差。见[实际配置核对](outputs/local-gptoss120b/systemness-component-pilot/architecture-audit.json)和[验证位置分解](outputs/local-gptoss120b/systemness-component-pilot/validation-system-by-position.csv)。
+模型配置核对发现：当前 attention 特征的 16/20/24 层均为 128-token 窗口的局部注意力层，而相邻的 17/21/25 层是全局注意力层。200 篇原文试验中，长正文超过 512 token 后的验证 system recall 两种特征均为 34.02%，整体 F1 提高尚未解决远距离位置。已据此完成相邻全局注意力层对照；输出投影前的头级特征（4096 维，而投影后为 2880 维）仍待检验。残差仍能传递更早的角色信息，局部窗口不能单独解释全部误差。见[实际配置核对](outputs/local-gptoss120b/systemness-component-pilot/architecture-audit.json)和[验证位置分解](outputs/local-gptoss120b/systemness-component-pilot/validation-system-by-position.csv)。
 
 
-1200 篇原文的局部 attention 轮次已完成四个读出的训练与验证。固定模型为 MLP-64，全局 system 阈值为 0.5554444444444444；相同验证集的平均 system F1 从原模型的 85.44% 提高至 89.00%。本项仍只有验证证据，新增 400 篇确认尚未执行。[报告](outputs/local-gptoss120b/systemness-attention/report.txt)、[冻结选择](outputs/local-gptoss120b/systemness-attention/selection.json)、[完整指标](outputs/local-gptoss120b/systemness-attention/validation-metrics.csv)、[独立确认入口](systemness_attention_confirm.py)。全局注意力的匹配对照已另行启动：[入口](systemness_global_attention.py)。
+1200 篇原文的局部 attention 轮次已完成四个读出的训练与验证。固定模型为 MLP-64，全局 system 阈值为 0.5554444444444444；相同验证集的平均 system F1 从原模型的 85.44% 提高至 89.00%。本项仍只有验证证据，独立确认尚未执行，后续将与完整长文候选共同进入464篇确认。[报告](outputs/local-gptoss120b/systemness-attention/report.txt)、[冻结选择](outputs/local-gptoss120b/systemness-attention/selection.json)、[完整指标](outputs/local-gptoss120b/systemness-attention/validation-metrics.csv)、[原400篇确认入口](systemness_attention_confirm.py)、[新464篇确认入口](systemness_long_confirm.py)。全局注意力匹配对照入口为[systemness_global_attention.py](systemness_global_attention.py)。
 全量局部 attention 的自然对话验证五分类准确率由 80.77% 降至 78.66%，CoT recall 由 59.52% 变为 54.17%；systemness 的改善不能等同于全部角色改善。
+
+
+全局邻层对照现已完成，未通过晋级标准：与同200篇原文的局部 attention 线性对照相比，平均验证 system F1 下降4.99个百分点。[完整负结果](outputs/local-gptoss120b/systemness-global-attention-pilot/report.txt)。该试验同时改变注意力类型和层深度，不能单独归因为窗口大小。
+
+长度审计发现，旧200篇“长正文”训练原文只有26篇达到1024 token，原50篇长验证只有10篇；512 token之后的system训练样本只有739个。原1200篇fit中共有132篇可达到1024，原200篇validation中共有31篇：[长度审计](outputs/local-gptoss120b/systemness-component-pilot/length-audit.json)、[完整长文分组清单](outputs/local-gptoss120b/systemness-component-pilot/full-length-cohort.csv)。
+
+新一轮保持local16/20/24特征，使用全部132篇完整长训练原文，每角色均匀采256个位置；31篇完整长验证原文每角色128位置。815个输入、188800个采样位置均已通过独立native角色解析和正文SHA核验。训练会替换对应旧long-single稀疏行；验证保留原四组及其匹配指标，另加long-full组，其中10篇与原长验证重叠，不重复计为新原文。[数据计划](outputs/local-gptoss120b/systemness-long-full/plan.json)、[准备完成记录](outputs/local-gptoss120b/systemness-long-full/data-complete.json)。
+
+[读出入口](systemness_long_probes.py)预设五个候选：原数据MLP-64、完整长文MLP-64/128和线性读出，以及原数据重采样MLP-64。主对照重采样原413290行至每轮578090实例，与完整长文候选均为142次更新；原数据未重采样读出保留作次对照。它们共用原fit标准化参数。独立早停仍可能产生不同最佳更新数，且此控制没有匹配长文权重，不能称为严格的最终总步数或全部训练分布匹配。当前尚无本轮读出训练结果。
+
+已提前声明后续独立确认：400篇新一般原文，加64篇另行去重、真实达到1024-token的完整长原文，共464篇独立来源；原400篇中的64个up-to1024长变体仍是配对子集。[确认协议](outputs/local-gptoss120b/systemness-long-full/confirmation-plan.json)。模型、阈值先用验证集冻结，再准备和执行该确认。当前这组独立确认尚未运行。
+
+本轮初始化在删除已声明的两个可重建特征缓存后，因即时可用空间检查失败而退出，尚未进入新长文提取。原文、行表、已发布模型和分组完整保留：[失败记录](outputs/local-gptoss120b/systemness-long-full/initialization-failure.json)。[显式恢复入口](systemness_recover_local_bank.py)按历史两个阶段重算原特征，只有pilot与完整前缀的float16 SHA都与旧值完全相同，才允许原提取程序继续；恢复不会删除其他缓存。
+
+后续候选方法仍是待验证假设。优先考虑同正文同位置、不同正式角色之间的配对排序损失，在训练中压低内容语义的干扰，推理仍只读取单个token特征；以及在o_proj之前选择或稀疏组合注意力头。前者可参考[监督对比学习](https://arxiv.org/abs/2004.11362)的监督结构，后者可参考[注意力头探针](https://arxiv.org/abs/2306.03341)的分析方法，这些论文并不证明本任务会有提升。另可增加命令语气与正式角色相反的困难样本、更多自然对话system模板，以及轮数和工具循环不同的正常native输入。所有system标签正常保留，错误挖掘只使用fit数据，方法和阈值仍在验证集决定。
