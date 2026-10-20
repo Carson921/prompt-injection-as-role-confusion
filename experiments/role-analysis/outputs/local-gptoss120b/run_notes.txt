@@ -1,0 +1,52 @@
+GPT-OSS-120B role-probe training on four NVIDIA A40 GPUs
+
+This trains logistic-regression role probes on a frozen language model, following
+02-train-role-probes.ipynb. Expert weights remain MXFP4; model activations are BF16,
+activation checkpoints FP16, and probe fitting FP32. The official 120B YAML setting
+uses StandardScaler and L2 logistic regression with C=0.005, max_iter=5000,
+linesearch_max_iter=100, fit_intercept=True.
+
+Data: the exact 249 cached 20B training texts (62 C4 + 187 Dolma3), rendered in all
+five roles. Includes 249 genuine Harmony system messages, each retaining its
+<|start|>system<|message|> header. There are 143,678 content tokens per role.
+Role tags condition the forward pass; probe targets remain content tokens only,
+as in the source experiment. All 1,245 prompts and content labels match the 20B
+experiment exactly. Nine layers (0,4,8,12,16,20,24,28,32) x eight role combinations
+produce 72 probes, including four combinations containing the system role.
+
+The original prompt-level 90/10 cuML split and seed 123 are retained. Copies of a
+base text rendered in different roles can cross this split. The reported held-out
+accuracies therefore use the source experiment's prompt split, not a split by
+underlying source document. No new conversation-generation evaluation is included.
+
+Host workarounds:
+1. The original /workspace mount blocked during checkpoint loading. The official
+   openai/gpt-oss-120b snapshot b5c939de8f754692c1647ca79fbf85e8c1e70f8a was cached
+   at /dev/shm/role-analysis-gptoss120b. Every one of its 15 weight shards passed
+   SHA256 verification against the official published ETags. Its config hash
+   matches the previously read local checkpoint config. The blocked local mount
+   prevented a full byte comparison with the original local weight files; see
+   checkpoint-cache-verification.json for the exact verification scope.
+2. Independent GPU peer-copy tests found silent corruption on this A40/PCIe host.
+   All inter-GPU tensor transfers now use blocking CPU staging. The staged-copy
+   tests passed in all four directions. Initial activation caches produced before
+   this fix were discarded; all training activations were regenerated.
+3. Four pipeline stages each own nine actual Hugging Face decoder layers. The
+   pipeline and the corrected sequential forward pass matched bit for bit at all
+   nine captured layers. GPU queues are bounded. The LM head is omitted during
+   bulk extraction; it does not affect pre-MLP states.
+
+Files:
+- complete.json: successful completion marker and aggregate training metrics
+- training_metrics.csv: per-layer/per-role-space held-out metrics
+- system-role-accuracy.csv: system recall for every relevant probe
+- ../probes/gptoss-120b.pkl: all trained probes in the original notebook schema
+- training-accuracy-by-layer.png: training-validation accuracy plot
+- forward_validation.json and pipeline_validation.json: correctness checks
+- peer_copy_diagnostic.json and staged_copy_validation.json: host transfer tests
+- environment-freeze.txt, manifest.json, provenance.json: reproducibility records
+- fit-gpu0.log ... fit-gpu3.log: independent probe-fitting worker logs
+
+Resume extraction with the launch_command in provenance.json. To fit again from
+completed activations, run the runner with --stage fit. It skips existing probe
+checkpoints. To rebuild aggregate artifacts from trained probes, use --stage report.
