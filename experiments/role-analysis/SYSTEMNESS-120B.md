@@ -231,3 +231,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 条件C4确认的[独立数据入口](systemness_aug_confirmation_data.py)及[CPU/独立审查](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/c4-builder/preparation.json)已冻结：固定8192行窗口、显式六个历史C4清单和原249双库存、400一般加128另行去重的真实1024来源、64个一般来源的配对长变体；全部实际正文位置参与评分。合成输入验证了新命名空间、3360输入结构、正常system标签、断点材料只读验证及固定图集。当前仍未选择真实新增测试ID、声明真实测试快照或读取新窗口正文。
+
+
+条件自然确认的[新数据入口](systemness_aug_natural_data.py)及[27项合成与10项独立CPU审查](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/natural-builder/preparation.json)已冻结：后续固定64个OASST、64个ToxicChat全新来源及32种新正常system措辞，排除历史448个自然来源和全部200个旧请求。先只读用户字段选定并冻结全部ID、措辞、分配与图库，再材料化选中回复；质量失败保留且不替换，all/clean与共享措辞、重复回复依赖组件均保留。全部S/U/A正文评分，CoT/tool无观测记N/A；回复来自公开原记录，非120B生成、也非新system措辞条件下生成。当前仅源码/合成审查，尚未选择真实新ID或声明真实模型快照。
