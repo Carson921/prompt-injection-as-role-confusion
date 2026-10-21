@@ -1,0 +1,52 @@
+{
+  "stage": "two_prospective_nonsequential_methods_only",
+  "not_executed": true,
+  "evidence": "Audited natural-fit has better system meanF1/min33 but old-natural five-way accuracy90.2253%→83.4058% and CoT recall79.5722%→64.0534%; old tailF1 also regressed. This motivates preserving non-system discrimination, not claiming a solved system boundary.",
+  "methods": [
+    {
+      "priority": 1,
+      "method": "Frozen non-system conditional + specialized bounded binary system residual",
+      "formula": [
+        "a_old=z0-logsumexp(z1:); q_old=softmax(z1:).",
+        "delta=4*tanh(MLP32(head512)); zero final layer.",
+        "r=sigmoid(a_old+delta); p=[r,(1-r)*q_old]. Implement via frozen old5 logits plus delta only on z0, retaining the original numerical path for zero-start parity."
+      ],
+      "preservation": "All non-system logit differences are unchanged. The conditional CoT/user/assistant/tool ranking is fixed; a formerly correct non-system CoT winner cannot become assistant within that branch. Full argmax can still flip CoT→system, so five-way accuracy is not automatically guaranteed.",
+      "tail_boundary": "System P/R/F1/BAcc depend only on r and tau. Frozen q cannot fix tail binary errors. Copying current new r with old q would reproduce its failed tailF1 exactly; no such p splice was evaluated.",
+      "minimal_trial": "One fixed512→32→1 residual, bound4, binary BCE only; old base/scaler frozen. New and exact same-role matched arms use641493 instances,157updates/epoch,last2517,seed20261021,max45/min10/patience8. Keep current source/components/slots. Old5-only early-stop and freeze best/history/GPUold before C4/public prediction. No anchor/architecture/bound/seed search.",
+      "why_binary": "With q fixed, five-class CE equals binary BCE plus a non-system -log(q_old[y]) constant. PublicSUA supervision can adapt system detection without retraining CoT-versus-assistant discrimination. A finite non-system KL-distillation alternative is softer and lacks this ordering guarantee; it is not an additional candidate here.",
+      "resources": {
+        "LM_or_new_features": false,
+        "readout_A40s": "At most2, one perarm, after competing jobs end.",
+        "parameters": 16449,
+        "shared_old_raw5_F32_MiB": 17.026,
+        "fit_features_F32_GiB": 1.224,
+        "precompute": "CPU4096-row chunks from existing512 banks, immutable model/scaler/rows/sample/range SHA."
+      },
+      "success": "Only new arm can promote: min33≥90% and strict matched/calibrated-oldhead/fixed4seed controls, all current old4/old5/full-tail/public/FPR/savedGPU guards, plus explicit legacy CoT recalls/confusion. No automatic tail improvement or independent-generalization claim."
+    },
+    {
+      "priority": 2,
+      "method": "Fit-only mixed-domain complementary head discovery; retain8 and append exactly2",
+      "reason": "Existing8 were selected using only132longfit documents and are concentrated in layers7/15/31; the proxy may omit complementary mixed/public signal. This is a hypothesis, not proof of redundancy or missing information.",
+      "design": "Freeze source/family/repeat-component fit-only statistics/discovery split; exclude every validation/test source. Scan2304head LDA moments on a bounded prepared fit-only token subset; actually stream discovery p_system. Append2 via deterministic greedy worst-domain document-macro binary-logloss improvement/tail-AUROC tie break, then freeze head IDs before any val. Roles/position/source are fitting metadata, never inference inputs.",
+      "resources": {
+        "LM": "Original nativeMXFP4 shared across4A40; no weights updated.",
+        "moment_persistent_MiB": 77.713,
+        "discovery20000x2304_F32_MiB": 175.781,
+        "additional2head128F16_bank_MiB": 217.939,
+        "rough_time": "1M-token scan≈12min LM floor plus all-head statistics; needed-bank re-extraction≈3.9M tokens/~47min at parent throughput. These are unmeasured estimates; exactlength/free-memory guards required.",
+        "preserve_existing_banks": true
+      },
+      "control_success": "Same source/weights/seed/update budget versus fixed8 control; only one new joint readout/global tau. Feature dimension/capacity changes remain a confound. Must pass the same min33 and full guard suite; fit-discovery selection and reused validation are developer search. Stop before full extraction if no complementary discovery gain."
+    }
+  ],
+  "next_step": "Freeze only the first method protocol if root chooses to proceed. No new trainer, model inference, GPU, source selection or test scan performed. Any developer win still needs fresh disjoint C4 plus natural confirmation.",
+  "full_memo_path": "/tmp/long_data_next_nonsequential_methods.json",
+  "full_memo_sha256": "f3dd5042a4ac1aa4884fad84f0e21067e99cbd9ac902054ac123036a88a826fc",
+  "completed_CSV_sha256": "666721ac757e687858b0c22f9f876062109cf113567c8ed5aba8ad80d727a488",
+  "root_actual_audit_sha256": "b8de402c326f052e1ed3e2e90a313fb8f58268c1802c66c1ff3570de40c67617",
+  "probability_files_or_model_weights_read": false,
+  "test_data_read": false,
+  "GPU_used": false
+}

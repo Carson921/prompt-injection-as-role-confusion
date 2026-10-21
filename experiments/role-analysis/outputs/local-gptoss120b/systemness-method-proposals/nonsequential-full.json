@@ -1,0 +1,139 @@
+{
+  "version": 2,
+  "stage": "prospective_nonsequential_methods_after_audited_natural_fit_negative",
+  "boundary": {
+    "root_authorized_terminal_CSV_and_report_read": true,
+    "completed_trial_probability_files_read": false,
+    "model_predictions_recomputed": false,
+    "test_data_or_results_read": false,
+    "source_IDs_selected": false,
+    "unused_source_text_decoded": false,
+    "GPU_or_new_training_run": false,
+    "formal_sources_protocols_or_primary_changed": false
+  },
+  "prior_unpublished_memo_sha256": "cbfbbf75afac021483dc09fab6a7396b1a322d69e5307d6181cc4cf9524a917b",
+  "decision": "Prioritize one factorized system-versus-rest readout on existing features. Retain complementary heads as the second representation hypothesis only if another feature experiment is warranted. Neither route is launched or scientifically validated by this memo.",
+  "evidence": [
+    {
+      "fact": "Original head discovery used only132 true1024 fit documents,101 statistics-fit/31 discovery; it macro-averaged full/tail AUROC. It did not select heads for mixed short/multi/public-natural domains.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-head-scan/plan.json"
+    },
+    {
+      "fact": "Eight selected heads are concentrated in layers7/15/31; five of eight are from layer7. This is concentration, not proof of redundant information.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-head-scan/head-selection.json"
+    },
+    {
+      "fact": "Published long-source augmentation maximin min24=.8530928 versus matched=.9005534 and oldhead=.8977865; multiple old/full-tail guards failed. More long rows alone did not solve this trial.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-long-augmentation-probes/report.txt"
+    },
+    {
+      "fact": "Published4seed mean reached min24=.9016260 but failed full/tail guard. Variance reduction and threshold calibration alone did not satisfy the full criterion.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-multiseed-ensemble/report.txt"
+    },
+    {
+      "fact": "Deterministic fit-only head/role/half samples showed standardized RMS ratios .9778..1.0393 and coordinate-mean-shift RMS<=.07825 old sigma for matched long profiles. No gross scale mismatch was found; this is neither a population support test nor a causal account of the failures.",
+      "source": "/tmp/long_data_fit_feature_distribution_readout.json"
+    },
+    {
+      "fact": "Independently audited natural-fit new-max33 min33=.902407 versus fixed4seed ensemble=.901626; old-natural five-class accuracy .902253 to .834058 and CoT recall .795722 to .640534, while assistant recall .998882 to .999721. This establishes forgetting in non-system classification but aggregate recall alone does not identify every confusion destination.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-probes/validation-metrics.csv",
+      "root_actual_audit_sha256": "b8de402c326f052e1ed3e2e90a313fb8f58268c1802c66c1ff3570de40c67617"
+    },
+    {
+      "fact": "The same CSV gives old-tail system F1 .930327 for new versus .935328 for calibrated oldhead, while public-natural-all system F1 is1.0 and public CoT/tool truth is absent. PublicSUA success cannot establish preserved legacy CoT performance.",
+      "source": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-probes/validation-metrics.csv"
+    }
+  ],
+  "methods": [
+    {
+      "rank": 1,
+      "name": "Specialized binary system head with exactly frozen non-system conditional distribution",
+      "definitions": {
+        "base": "Use unchanged oldhead27a22... and original fit-only512 scaler. z_old is the frozen five-class raw logit vector for the same token.",
+        "conditional": "q_old(k|non-system,x)=softmax(z_old[1:]) for user,cot,assistant,tool.",
+        "system": "a_old=z_old[0]-logsumexp(z_old[1:]); delta(x)=4*tanh(g_phi(x)); r_phi=sigmoid(a_old+delta). g_phi is one fixed512->32 GELU->1 MLP with final weights/bias zero.",
+        "output": "p_new(system)=r_phi; p_new(k)=(1-r_phi)*q_old(k). This is algebraically the frozen old5 logits with delta added only to the system logit.",
+        "inputs": "Only the current token head512 vector; a_old/q_old are outputs of the frozen base. No neighbors, sequence index, true role, wrapper, source, family or body-position label is an inference input."
+      },
+      "precise_preservation": "For every pair of non-system classes j,k, p_new(j)/p_new(k)=q_old(j)/q_old(k)=exp(z_old[j]-z_old[k]); their ranking is exactly preserved. Therefore a token whose old non-system winner was CoT cannot newly switch to assistant within the non-system branch. This is a structural guarantee, not a measured improvement.",
+      "five_class_limit": "Full argmax may still switch between system and the fixed best non-system class: system wins iff r_phi >= (1-r_phi)*max(q_old). A CoT token can still become system, and an old system token can become another role. Overall five-class accuracy/CoT recall therefore still require guards; freezing q alone does not guarantee them.",
+      "tail_limit": "Thresholded system P/R/F1/BAcc depend only on r_phi and global tau. Freezing q cannot repair a poor long-tail binary boundary. A diagnostic splice using the current new model r and old q would exactly retain that new model system metrics and its tail F1 regressions; it is not a qualifying solution. No such splice or probability evaluation was run.",
+      "why_not_plain_threshold_or_resampling": "Delta is token-feature-dependent while a threshold is a single global shift. All non-system discrimination is fixed; publicSUA cannot rewrite CoT-versus-assistant weights. Repeating rows or changing a five-class threshold does not impose this constraint.",
+      "minimal_candidate_protocol": {
+        "candidates": "Exactly one binary residual architecture/objective, with new and same-role matched arms. No linear/MLP/bound/anchor/seed search.",
+        "data": "Exact old578090 plus clean-natural63403 slots, or exact same63403 frozen role-matched old draws. Preserve255fit/64public roots,32fit/16validation wording families and dependency components; no source reranking or new IDs.",
+        "loss": "Unweighted binary BCE for system versus rest, using all old CoT/tool negatives and all native S/U/A natural fit. With q fixed, five-class CE differs from this BCE by -log(q_old[y]) for non-system truth, a constant with respect to phi. No new class-specific loss weight is needed.",
+        "initialization": "Old base frozen; zero final delta layer makes initial full five-way probabilities exactly oldhead for every token. Same private epoch shuffle/seed20261021 and identical binary target at every matched slot.",
+        "budget": "Same641493 instances/157updates per epoch,last2517,max45,min10,patience8,improve1e-5; report realized best/total updates rather than claim equal total updates. Early-stop only unchanged old5 mean-systemF1; freeze best/history/GPUold proof before newC4/public predictions.",
+        "calibration": "One global tau using the unchanged effective-F32 fullgrid/min33/FPR9 rule. No test-derived threshold, no conditional tau and no per-source inference rule.",
+        "anchor_boundary": "For the first minimal protocol, use BCE only plus the frozen base/bound, rather than add an unsearched KL coefficient. If a later anchored variant is justified, it must be another predeclared experiment; do not add it after viewing this candidate validation."
+      },
+      "distillation_alternative_not_an_extra_candidate": "A trainable non-system branch with KL(q_old||q_new) on old non-system fit is a softer dual-task alternative, especially if real new CoT/tool supervision becomes available. Finite KL permits changes in ordering and cannot guarantee CoT preservation; publicSUA-only data provide no new CoT/tool targets. Hard freezing q is the smaller and clearer first experiment.",
+      "resources": {
+        "new_LM_forward": false,
+        "new_feature_bank": false,
+        "GPUs": "One A40 per arm; at most2 concurrent readout workers after other jobs finish. No LM model load.",
+        "delta_trainable_parameters": 16449,
+        "feature_staging_GiB": 1.223550796508789,
+        "shared_base_raw5_F32_rows": 892678,
+        "shared_base_raw5_F32_bytes": 17853560,
+        "shared_base_raw5_F32_MiB": 17.02648162841797,
+        "precompute": "CPU stream existing rawF16 banks in4096-row chunks through the frozen original embedded scaler/readout; save shared5 F32 raw logits bound to model/source/features/rows/sample_ix/range hashes. No8640 bank upload, no new decode or generation. Reuse outputs for both arms.",
+        "weight_bytes_F32": 65796,
+        "max_updates_per_arm": 7065
+      },
+      "success": "Only the new arm can advance. Require absolute min33>=.90 and strict improvement over its role-matched arm, calibrated oldhead and fixed4seed ensemble, while passing unchanged old4F1/accuracy,old5mean,old/new full/tail nonregression,publicSUA,FPR9 and mandatory savedGPU originalhead guards. Additionally publish old-natural CoT/user/assistant argmax recalls and full confusion; public absent CoT/tool remainN/A. A developer win still requires wholly fresh disjoint C4 and natural confirmation.",
+      "risks": [
+        "The binary boundary may still trade precision for recall or regress tailF1; the proposal does not solve that mathematically.",
+        "The8 frozen heads may not contain enough relevant signal; the residual has less adaptable capacity than the already-trained full MLP.",
+        "Bound4 can multiply system odds by at most exp(4); basePsys=.05 reaches only about.742 at its upper limit.",
+        "Repeated use of the same developer groups is model development, not independent evidence."
+      ]
+    },
+    {
+      "rank": 2,
+      "name": "Fit-only mixed-domain complementary heads; preserve the original8 and append only2",
+      "hypothesis": "The long-only head-discovery criterion may have missed heads carrying short-dialogue/source-format system signal complementary to the selected8. New feature information, rather than resampling or a different threshold, could reduce the tradeoff.",
+      "fixed_scope": "Keep frozen MXFP4, normal native tags, original8 rank order, current source identities and old banks. A later protocol may scan all2304 heads but admit exactly2 additions, giving640 dimensions. No new user/reply/source IDs are needed for this diagnostic.",
+      "fit_only_split": "Before LM use, split only original C4 fit documents and clean natural fit sources into statistics/discovery by fixed hash of whole source/dependency components. Keep all five role views and original sparse/full overlaps of a C4 source in one partition. Keep each natural system family and assistant-repeat component in one partition. All old/new-C4/public validation sources stay excluded from head selection. Never use profile/role/position/source labels as inference inputs.",
+      "selection": "Fit per-head shrinkage LDA on statistics-only rows with fixed domain/role-balanced caps. Stream actual discovery probabilities, not moments-as-accuracy. Cap discovery at20000 sampled content rows. Greedily append2 heads reducing worst-domain document-macro binary system logloss of a fixed per-head-probability mean of the current selected set; deterministic tail-AUROC/head-ID tie break. Domains cover short-single, multi, true1024 full/tail and clean public-natural FIT. This proxy is a fit-development selection criterion, not an unbiased accuracy estimate or evidence the future joint MLP will improve.",
+      "new_extraction": "A first bounded scan, for example at most1.0M already-prepared serialized input tokens after frozen metadata-only selection, accumulates current-layer sampled moments immediately. Do not retain full36-layer sequences. After selection, re-forward only the exact rows needed for future training/development to save the2 added heads in a separate128-dim F16 bank with original sample_ix/cache mapping. Compose features by row identity with the retained old512 bank; do not rewrite/delete old banks.",
+      "resources": {
+        "LM": "Exactly4 sharded A40, original native MXFP4; same sequential bounded hooks and disabled-write hidden-state selfcheck.",
+        "all_head_persistent_moments_MiB": 77.712890625,
+        "discovery_system_probability_F32_MiB": 175.78125,
+        "new2_head_bank_rows": 892678,
+        "new2_head_bank_bytes": 228525568,
+        "new2_head_bank_MiB": 217.93896484375,
+        "row_scope": "old densefit578090 + oldval173032 + newC4val61440 + natural fit/val80116. No failed-augmentation327680 fit rows need re-extraction for this fixed training scope.",
+        "time_estimate": "Parent reference3.339M tokens/~40min implies about12min LM-forward floor for a1M-token fit-only scan, plus all-head statistics cost. Re-extracting needed rows from old+newC4val+natural banks needs roughly3.9M serialized tokens/~47min at that throughput. Obtain exact metadata length sums and free-memory guards before execution; these are not measured guarantees.",
+        "memory_note": "Moment exports, LDA factorization, gathered activations and ranking workspaces exceed persistent sizes. Host probability scratch need not occupy root disk or /dev/shm. Preserve a declared reserve; do not delete existing caches."
+      },
+      "control": "Use one frozen original8-head baseline under the identical original/natural fit rows, seed, early-stop rule, threshold grid and update budget. Appending2 changes both feature information and model capacity; report that confound. No random-head or architectural search is authorized by this proposal.",
+      "success": "One predeclared joint readout and one global threshold must improve the same developer min33 over its fixed8-head control while passing all existing old5/public/full-tail/FPR/savedGPU guards. An absolute90% developer floor remains necessary. Any apparent win still requires wholly fresh disjoint C4 and natural confirmation.",
+      "risks": [
+        "Scanning2304 possibilities can overfit fit-discovery; it remains developer material.",
+        "Original8 were already chosen in prior development; adding2 cannot be claimed as an unbiased head-importance estimate.",
+        "Extra heads may be correlated or irrelevant, and a joint MLP may not exploit the LDA proxy.",
+        "If no2-head discovery improvement exists, stop before the costly full-bank re-extraction."
+      ]
+    }
+  ],
+  "source_diversity_note": "Real source diversity remains relevant, but the completed natural-fit result shows sourceSUA addition alone can erase legacy CoT discrimination. Do not select new sources based on current failures; adding more publicSUA without preserving the conditional non-system task is not the priority. New public replies would still not be120B generation or evidence of system-instruction following.",
+  "execution_preference": "First freeze and test the single factorized binary residual with matched control on existing banks; no automatic launch is authorized. Use a complementary-head scan only as a separate later representation experiment if warranted. Do not expand configurations during either result review.",
+  "provenance_sha256": {
+    "/tmp/long_data_fit_feature_distribution_readout.json": "269980c214824b1793d413225513a23ef13e0a5ce62ebf3874b9437002a59e31",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-head-scan/plan.json": "94edda02b6752d4a584d2b5155fd34b4cf3e1b599593a681f5651ed8c0912f5c",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-head-scan/head-selection.json": "e04aa7ac8112bef6ad71ee09327efe688c1c020c3ba74980b7444d621e1e5a91",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-long-augmentation-probes/report.txt": "6086bae71c4ab343c0e94fca2e085617a97d6c3d4a78e27269eea79c65428820",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-multiseed-ensemble/report.txt": "76c8b2029fb06ae6038f6618c691dac5818c2371f43be26954c53c5bdc95c2cf",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-probes/selection.json": "d1ab1fbdf2d7ba30c5f412b723467519097156fbd39e91cb020c3f9925979311",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-probes/report.txt": "910821b1ae11877a771927b76508cbba4ae788d2a689235c3ec8341c802e5e00",
+    "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-probes/validation-metrics.csv": "666721ac757e687858b0c22f9f876062109cf113567c8ed5aba8ad80d727a488"
+  },
+  "not_done": [
+    "No probabilities or model weights read/recomputed.",
+    "No source/body filtering, source ID choice, new feature extraction, training or test scan.",
+    "No guarantee that frozen conditionals meet full accuracy or tailF1 guards."
+  ]
+}

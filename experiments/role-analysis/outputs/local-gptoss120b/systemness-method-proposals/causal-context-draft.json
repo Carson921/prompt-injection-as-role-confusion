@@ -1,0 +1,69 @@
+{
+  "stage": "prospective_causal_context_readout_draft_only",
+  "implementation_or_execution_authorized": false,
+  "basis": {
+    "frozen_pointwise_model_sha256": "27a22fea0e784caba9be2d777ecab892db85d30536c3eac46887d31283074266",
+    "selected_heads": [
+      458,
+      462,
+      2045,
+      460,
+      459,
+      2047,
+      456,
+      997
+    ],
+    "current_natural_fit_trial_probabilities_or_results_read": false,
+    "test_probabilities_or_results_read": false
+  },
+  "claim": "这是因果上下文读出器；提升只能说明历史观测有用，不能称为单token可解码性提高。模型LM和原pointwise读出器均冻结。",
+  "candidate_limit": 2,
+  "shared_inputs_and_resets": [
+    "只输入冻结oldhead当前/过去的5类概率p_t（或其确定性log变换）；不输入token ID、gold role、message边界、source/dataset/template/family、token位置、长度、body_offset、采样间隔或其它元数据。",
+    "状态仅在每个新prompt起点初始化。按真实token顺序因果更新，无双向层、未来token、gold teacher forcing、gold角色变化或消息边界reset。",
+    "技术padding mask只能保持padding步状态不变，不能当作role线索。gold角色/内容位置仅用于fit监督loss及评分mask，不作为状态输入/reset；不得在loss未选中的token上重置。",
+    "若以后另提confidence reset候选，须新版本预声明；只能依据自身p的置信度/间隔，不能读取header角色标签或gold边界。当前两候选不使用这种硬reset。"
+  ],
+  "candidates": [
+    {
+      "id": "hmm-filter-5",
+      "type": "5状态HMM式因果判别滤波器",
+      "equation": "q_t = normalize(clip(p_t,1e-8,1) * (A.T @ q_{t-1})); q_0=softmax(pi_logits).",
+      "parameters": "只学习5x5行softmax转移参数及5维初始先验；A初始对角.995/其它.00125，pi初始均匀。p_t是判别式发射势，并非已证明校准的生成似然。",
+      "fit": "以fit标注在冻结监督位置上的CE拟合参数；始终递归使用自身q，不把上一gold标签灌入状态。",
+      "risk": "相邻p高度相关，连乘会重复累计同一错误证据；持续强错误证据会覆盖先前正确记忆。更sticky的转移也会推迟真实角色切换，不能把它称为保证恢复远距system身份。",
+      "numerical_control": "同路径无记忆控制固定A每行均匀、pi均匀，此时q_t=normalize(clip(p_t))；与原冻结p比较完整开发概率/argmax/tau决策漂移。它只是数值控制，不是第三训练候选。"
+    },
+    {
+      "id": "gru32-logp-residual",
+      "type": "单向GRUCell(5,32)+5维有界logit修正",
+      "equation": "h_t=GRUCell(log(clip(p_t,1e-8,1)),h_{t-1}); q_t=softmax(log(clip(p_t,1e-8,1))+2*tanh((W*h_t+b)/2)); h_0=0.",
+      "parameters": "3909个可训练参数；原oldhead不更新。W/b零初始化；GRU初始化seed20261021；输入dropout=.1仅训练时启用。",
+      "fit": "整prompt BPTT，或仅作实现切块但carry状态且不按gold reset；不得把截断点置零。只允许fit CE拟合。",
+      "numerical_control": "零修正会因clip/log/softmax轻微重算p。必须保存全开发集零修正概率差、argmax/固定tau决策变化，并同时对原冻结控制和同路径零修正控制施加guards，不能把重算漂移算成上下文收益。",
+      "risk": "只能利用oldhead概率保留的信息；单向记忆可能延迟边界/放大错误，无法凭空恢复旧读出已丢掉的特征信息。"
+    }
+  ],
+  "critical_density_constraint": {
+    "existing_banks": "原C4 fit大量为32/256稀疏body采样，新natural为全部内容token；现有bank还缺header及其它未采样token的p。按这些行训练/推理只构成observed-event序列，而不是完整token序列。",
+    "invalid_shortcuts": "禁止把缺失p复制/插值、按gold role补值、根据body_offset计时/调节转移率，或把稀疏训练直接当作已验证的完整1024-token模型。",
+    "recommended_decisive_route": "若将来授权，先另行冻结prob-only dense-dev producer：现有同一fit/val prompt在冻结LM+oldhead下按全部非padding token产生p（包括header也只输入p，不输入header标签）。临时8head向量在线消费，只存5类F32 p，约20MB/百万token，另计row映射；不存新512维全量bank。现在不实现或运行。",
+    "membership": "仅复用原578090 densefit所引用的native prompts，加255clean natural fit；排除原污染fit整篇和近期new256 C4 fit增补。验证只用原old173032、已复用newC4-96、public64，全部仍是development。",
+    "loss_density": "状态更新覆盖全部非padding token；监督loss仍只落在原578090+CLEAN63403=641493个冻结fit位置，可保持原五类与SUA混合比例，header无需gold监督。两候选共享同一prompt顺序/loss mask，事前冻结相同token预算与最大更新数；报告整prompt batch造成的权重/实际更新差异。",
+    "scoring": "先在相同旧采样位置输出原min33可比指标；另对真正dense C4全文/512+尾部报告完整分母与对照，不把稀疏位置指标改名成全token结果。没有density-matched dense开发流时只能做稀疏事件诊断，不能晋级为完整token方案。"
+  },
+  "fit_and_validation_rules": [
+    "两候选、固定seed、输入变换/转移初始化/GRU32/边界均在任何新预测前冻结；不根据当前natural-fit结果增加候选、改窗口或改参数。建议同AdamW lr.001/wd.001/clip5，最多20epochs，min8/patience5；精确序列batch与更新预算须在正式新协议中定稿。",
+    "checkpoint只看原old5开发规则，best模型/历史冻结后才看newC4/public64。全部权重、先验、转移、正常化和其它拟合参数仅由fit学习；无验证集scaler/transition/emission拟合。",
+    "每候选按现有11组33项(system P/R/BAcc)的实际F32全网格校准一个全局tau；未定义precision不可行，FPR<=.05，tie按old5meanF1再较小tau。所有2个结果及负结果均报告。",
+    "仅在min33>=.90、严格优于冻结oldhead同路径max33及零修正控制，且逐old4/public组F1损失<=2pp/五类accuracy损失<=1pp、old5meanF1损失<=.5pp、old/new C4 full/tail F1不退、原savedGPU固定tau floors均通过时，才可进入新确认。dense full/tail还须对同forward pointwise有单独非退检查。",
+    "public自然只观察S/U/A：CoT/tool支持0，recall/F1为N/A；旧natural含CoT，二者分开。状态模型改变其它类相对排序时必须报告完整confusion/role recall，不能只报system。"
+  ],
+  "proof_required_before_any_claim": [
+    "先冻结matched pointwise/HMM/GRU模型与阈值、producer依赖/模型/输入/概率SHA及顺序；共享同一个MXFP4 forward，校验所有数据/序列归属/恢复。",
+    "未来全新且与全部已用fit/dev/test源去重的C4完整1024+自然测试；不读旧test回调参数。paired bootstrap按原文以及自然wording/重复assistant依赖组件，不能按token或对话数量虚构system独立样本。",
+    "固定多来源tomato图：至少12个预定自然/一般对话，以及4个预定full-system长文；共享pointwise/context列、真实SUA/五类标签、完整0..1023与512+段、不平滑、不按准确率挑例；公开所有失败模型与边界延迟。",
+    "只有新独立C4全文/尾部与自然各预定组的P/R/BAcc全部达到90%，才能支持这一目标；开发min33和记忆更平滑本身都不等于目标完成。"
+  ],
+  "authorization_scope": "用户持续授权继续实验；false仅表示这个子任务限定为设计/元数据估算，未执行新路线，不代表用户缺少授权或需要重新确认。"
+}
