@@ -1,0 +1,69 @@
+{
+  "stage": "independent_binary_residual_prospective_design_review",
+  "status": "support_fixed_design_with_explicit_numerical_and_control_contracts",
+  "boundary": {
+    "probabilities_or_model_weights_read": false,
+    "new_model_inference_or_GPU_run": false,
+    "test_data_read": false,
+    "frozen_source_modified": false
+  },
+  "scientific_scope": {
+    "intervention": "Freeze original27a22 base/scaler; only add4*tanh(MLP32) to raw system logit. Non-system relative logits/conditional classification remain fixed. This isolates system boundary adaptation from retraining the conditional four-way branch, not from all changes in capacity/optimization.",
+    "expected_benefit": "Prevent the non-system branch from rewriting legacy CoT-vs-assistant distinctions under newSUA-only supervision.",
+    "not_guaranteed": "A token can still cross system/non-system; five-way accuracy and tail systemF1 need all guards. The same current-new system probabilities spliced with old conditionals would keep current failed tail metrics and would not qualify.",
+    "loss": "BCEWithLogits(a_old+delta,y_system), a_old=z0-logsumexp(z1:). No extra/4 and no class reweight/anchor/auxiliary objective unless frozen separately. Five-way CE with a frozen conditional adds only a gradient-constant term for non-system truth."
+  },
+  "must_freeze": [
+    "Exact old modelSHA/scaler/8headorder; one shared old-scaler standardization for both base and residual. Base params requires_grad=False, all base operations no_grad, base eval forced even after outer train(). Optimizer has only residual parameters.",
+    "Residual512->32 GELU/dropout.1->1, final weights+bias zero, bound4*tanh(g). Same initialization hash/seed20261021 and independent private epoch-order generator across new/matched. Portable/parity calls do not advance training dropout RNG.",
+    "Old578090 prefix plus clean-natural63403 versus exact frozen same-role matched draw;641493 instances,4096batch,157updates,last2517,45max/10min/8patience/1e-5. Realized best/total updates may differ.",
+    "Old5 early-stop only. Freeze each arm best portable modelSHA, GPUoldpSHA/history before its C4/public residual predictions. Compute samepath-zero newC4/public only after bestfreeze as well.",
+    "Five-class confusion/accuracy uses actual five-way p.argmax. Global tau only changes binary system detection; never introduce a tau-gated five-class classifier to improve guards.",
+    "All records and controls use same CPU float32/highest/4threads/4096 path. Initial delta0 uses original raw5/log_softmax/exp path; no probability renormalization or q-based arithmetic shortcut that invents numerical gain."
+  ],
+  "portable_and_evidence": {
+    "format": "Self-contained NPZ preferred: frozen original base arrays+old mean/scale, residual arrays, exact array names/shapes/dtypes and metadata kind/version/basefileSHA/eachbasearraySHA/bound/activation/dropout/roles/8heads/source/protocol/plan/init/bestSHA. CPU reconstructs old+delta directly; no dynamic global verifier.",
+    "raw_invariance": "For every evaluated bank, preserve/check contiguous F32 raw[:,1:] bytes (or uint32 views), not merely maximum difference0 or float equality. Clone base logits before changing[:,0], and never mutate shared base outputs. Record number of compared rows and both byteSHAs.",
+    "ranking_and_swaps": "Require0 changed raw non-system conditional argmax and0 observed complete-F32p transitions between two different non-system winners, including CoT->assistant. Report full5x5 transitions, by-truth-role and probability ties/underflow. This is an observed fail-closed condition; finite-precision normalization may change ties despite raw-logit equality. Do not epsilon-repair probabilities.",
+    "portable_scope": "Same saved256 cleanFIT vectors only; no validation parity probability before bestfreeze. Test old path zero identity, modelbase freeze and CPU/GPU residual probability tolerance<5e-4."
+  },
+  "records_and_gate": {
+    "formal_records": 10,
+    "CSV": "110group+10pooled=120; original8names plus naturalCE-oldmean/naturalCE-max33.",
+    "zero_controls": "Separate zero-controls.json and separate24rowCSV (22groups+2pools): zero-oldmean uses fixed original tau .620969696969697, zero-max33 uses independent same-rule fullgrid. Freeze zeroC4/public only afterBOTH arms best/history/model/GPUold; include full p/sample SHA and row/protocol/model identity. Not a trained candidate or one of10records.",
+    "strict_min33_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "samepath-zero-max33"
+    ],
+    "hard_guard_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "oldhead-oldmean",
+      "ensemble-original",
+      "samepath-zero-originaltau",
+      "samepath-zero-max33"
+    ],
+    "additional": "Mandatory original savedGPU guard remains. naturalCE two records are diagnostic, with differences reported; no hard five-class guard or strict-min requirement against the already-rejected CE sacrifice unless root explicitly changes design before results.",
+    "floor": "Only new-max33 eligible; absolute min33>=.90; all existing old4F1/acc,old5mean,old/new full/tail nonregression,publicSUA,FPR9/savedGPU constraints; no fallback and fresh C4+natural confirmation still required.",
+    "CE_binding": "Static complete/model/p/rows/sample/protocol/source files from prior b8de actual certificate; no old tests or dynamic global verification."
+  },
+  "resource_assessment": {
+    "additional_LM_or_features": false,
+    "readout_workers_max": 2,
+    "one_A40_per_arm": true,
+    "per_arm_fit_feature_F32_GiB": 1.223550796508789,
+    "old_val_F32_GiB": 0.3300323486328125,
+    "residual_parameters": 16449,
+    "base_inference": "On-batch no_grad frozen128MLP is small relative to LM; no17MiB base precompute cache is necessary. Stream later CPU control predictions and preserve all oldbanks.",
+    "actualsteps_note": "Equal per-epoch/max budgets do not imply equal stopped updates; publish both."
+  },
+  "independent_auditor_contract": "New /tmp source, defaulthelp/preflightCPU only until final trainer+protocol pins and terminal0. No production metrics/calibrate/guard/verified_completion. Independently reconstruct portable base+delta, full3bank CPU p, signed-bit non-system invariance, zero path, CEstatic references,120CSV,33fullgrid,4strict/7guards+GPU, matched draw/history/model/hash. Root sole actual.",
+  "unresolved_before_source_freeze": [
+    "Exact final new trainer/portable/candidate/control field names and sourceSHA.",
+    "Final root metadata protocolSHA."
+  ],
+  "root_formal_design_sha256": "c68a32d55e732f678f77a7ef91d8d966a416f118d43663f913b3c9f2d14e09c5"
+}
