@@ -228,3 +228,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 未来测试的[静态闭合模型快照入口](systemness_aug_confirm_snapshot.py)及[CPU/独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/closed-snapshot-helper/preparation.json)已冻结。它在开发正式完成且实际独审通过、新模型按预定规则晋级后才允许真实声明；逐项绑定已审计模型路径/SHA、四条阈值、固定依赖和checkpoint元数据，不通过扫描后来新增的测试目录重建旧输入。原始特征bank记录已审计指纹，确认时不重新宣称其逐字核验；当前未声明任何真实测试模型快照。
+
+
+条件C4确认的[独立数据入口](systemness_aug_confirmation_data.py)及[CPU/独立审查](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/c4-builder/preparation.json)已冻结：固定8192行窗口、显式六个历史C4清单和原249双库存、400一般加128另行去重的真实1024来源、64个一般来源的配对长变体；全部实际正文位置参与评分。合成输入验证了新命名空间、3360输入结构、正常system标签、断点材料只读验证及固定图集。当前仍未选择真实新增测试ID、声明真实测试快照或读取新窗口正文。
