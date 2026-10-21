@@ -32,7 +32,7 @@ def gate(audit_path):
         require(not any(Path(x.decode(errors='replace')).name in names for x in args if x),'Trainer/auditor live; no partial gallery reads.')
     require((TRAIN/'complete.json').is_file() and read(TRAIN/'status.json')['stage']=='validation_complete','Trainer not terminal complete.')
     require(digest(audit_path)==APPROVED_ACTUAL_AUDIT_SHA,'Actual development audit SHA changed.');a=read(audit_path)
-    require(a['stage']=='actual_completed_complementary_head_readout_development_audit' and a['audit_passed'] is True and a['test_data_or_results_read'] is False and a['auditor_source_sha256']==APPROVED_AUDITOR_SHA,'Passing approved actual development audit required.')
+    require(a['stage']=='actual_completed_complementary_head_readout_audit' and a['audit_passed'] is True and a['test_data_or_results_read'] is False and a['auditor_source_sha256']==APPROVED_AUDITOR_SHA,'Passing approved actual development audit required.')
     for path,key in [(TRAIN/'complete.json','trainer_complete_sha256'),(TRAIN/'protocol.json','trainer_protocol_sha256'),(TRAIN/'records.json','trainer_records_sha256'),(HERE/'systemness_complementary_head_readout.py','trainer_source_sha256')]:require(digest(path)==a[key],'Audited source/completion/thresholds changed.')
     require(a['trainer_source_sha256']==TRAINER_SHA and a['trainer_protocol_sha256']==PROTOCOL_SHA,'This gallery is bound to the frozen640 complementary-head trial.')
     require(digest(PLAN)==PLAN_SHA and digest(DESIGN)==DESIGN_SHA and digest(old.__file__)==HELPER_SHA,'Fixed source plan/design/helpers changed.')
