@@ -275,3 +275,10 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 [自然fit训练入口](systemness_natural_fit_probes.py)、[正式协议](outputs/local-gptoss120b/systemness-natural-fit-probes/protocol.json)及[28项CPU/27项独立审查](outputs/local-gptoss120b/systemness-natural-fit-preparation/trainer/preparation.json)已在实际训练前冻结。63403个匹配槽逐行标签与new相同，完整紧凑Parquet抽样表已归档，plan/model只绑定其SHA而不重复嵌大表；两arm每轮641493/157更新/末批2517，原fit-only scaler及初始化不变。所有新C4/public64分类预测均在best/history/GPUoldp冻结之后产生；只用cleanFIT256作CPU/GPU读出数值校验。八条记录及11组max33、原savedGPU护栏和继承四seed控制均明确保留，目前尚无新训练结果。
+
+
+自然fit配对训练已正常完成，两arm实际均17轮/2669次更新，best均9轮/1413次更新：[八条开发记录](outputs/local-gptoss120b/systemness-natural-fit-probes/report.txt)、[88行组指标＋8行描述pool](outputs/local-gptoss120b/systemness-natural-fit-probes/validation-metrics.csv)、[独立实际结果审计](outputs/local-gptoss120b/systemness-natural-fit-probes/preparation/audits/actual-development-audit.json)、[完整发布记录](outputs/local-gptoss120b/systemness-natural-fit-probes/results-publication.json)。独审在训练进程正常退出后独立复算6个实际网络×251185个开发位置，概率逐bit一致，指标最大差4.44e-16，全部阈值网格和保护条件一致。255个clean自然fit来源/32个措辞依赖组件、64个public验证来源/16组件全部保留；matched逐槽角色、每轮样本和本次实际更新均匹配，但不能据此排除文风、长度等其他分布差异。
+
+预定new-max33的最低P/R/BAcc为90.2407%，略高于matched89.6810%、旧head89.7786%和继承ensemble90.1626%，old5平均system F1为97.3544%。仍没有晋级：旧natural五类accuracy从旧head90.2253%降到83.4058%（−6.8194个百分点），CoT recall从79.5722%降到64.0534%；新模型8087个旧CoT位置有2491个被判assistant。这与新公开自然fit只有S/U/A的覆盖差异相符，但不是该差异的因果证明。旧full尾部system F1相对旧head-max33下降0.5002个百分点、相对ensemble下降0.3650个百分点，虽然新96篇C4尾部F1改善，也违反预先固定的不退步条件。public64组system P/R为100%只是反复使用的开发结果，不能解释为全新测试准确率。
+
+原savedGPU概率/0.620969696969697阈值保留；本次同CPU路径旧head完整old验证概率最大漂移1.91e-6、argmax和原阈值决策均0变化，继承ensemble的old/newC4概率漂移为0。MLP训练只更新读出器，120B底座保持原MXFP4冻结，特征前向使用4张A40；所有结果与失败理由完整保留，正式模型不变，未选择新测试来源或给失败候选生成确认图集。下一步优先考虑单独训练system二分类并固定非system条件分布，或增加保持旧四类能力的训练约束；这种改动仍需新协议、同等对照及全新长文/自然确认。
