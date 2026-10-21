@@ -257,3 +257,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 [已完成开发结果的独立解读与自然fit最小提案](outputs/local-gptoss120b/systemness-long-augmentation-preparation/interpretation/interpretation-and-natural-proposal.json)进一步核对：255个干净fit来源包含63403个S/U/A内容token（7935/12660/42808），64个自然验证来源16713个，污染fit整篇320位置禁止使用。若仅在旧578090行上加入干净自然fit，每轮641493行/157次更新/末批2517，新增占9.8837%；与等量旧fit采样对照，避免同时大幅增加long权重。这仍是未实现/未运行的方法提案；后续若执行，matched应显式匹配额外S/U/A标签计数。
+
+
+[多seed训练入口](systemness_multiseed_ensemble.py)、[正式声明](outputs/local-gptoss120b/systemness-multiseed-ensemble/protocol.json)及[19项CPU/25项独审证据](outputs/local-gptoss120b/systemness-multiseed-ensemble-preparation/trainer/preparation.json)现已在训练前冻结。主进程、worker和portable复算明确统一4个CPU线程与highest matmul设置；三新模型固定、缺成员即失败，正式只读验证不能隐式重算或改写旧控制。该源码发布点尚无新seed训练结果，后续只有root启动正式训练与实际独审。
