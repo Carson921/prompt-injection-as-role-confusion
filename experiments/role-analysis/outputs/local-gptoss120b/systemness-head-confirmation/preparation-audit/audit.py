@@ -91,7 +91,7 @@ check(len(full) == 64 * 5 * 1024 and len(tail) == 64 * 5 * 512, 'Wrong full/tail
 check(full.groupby(['document_id', 'role']).size().eq(1024).all(), 'Missing full role version')
 check(tail.groupby(['document_id', 'role']).size().eq(512).all(), 'Missing tail role version')
 check(not (set(full.document_id) & set(rows[rows.profile != 'long-full'].document_id)), 'Full/general overlap')
-report = dict(audit_scope='Preparation only; no probability, metric or test-based model selection access.',
+report = dict(audit_scope='Preparation only; upstream completion verification reads stored development probabilities. No confirmation/test probability or metric is read.',
     source_sha256=d.digest(__file__), data_sha256=d.digest(h.OUT / 'data-complete.json'),
     protocol_sha256=d.digest(h.OUT / 'protocol.json'), frozen_readouts_sha256=d.digest(h.OUT / 'frozen-readouts.json'),
     document_keys_sha256=d.digest(h.OUT / 'document-keys.json'),
@@ -102,7 +102,8 @@ report = dict(audit_scope='Preparation only; no probability, metric or test-base
     prior_fingerprints=len(prior_hashes), no_known_source_collision=True,
     original249_unavailable_urls_and_lines_not_claimed=True, semantic_or_domain_disjointness_not_claimed=True,
     full_length_rows=len(full), tail_rows=len(tail), frozen_four_models_verified=True,
-    gpu_model_loaded=False, probability_files_opened=False, seconds=time.time()-started)
+    gpu_model_loaded=False, stored_validation_probabilities_read_for_completion_verification=True,
+    test_probability_files_opened=False, confirmation_or_test_metrics_read=False, seconds=time.time()-started)
 path = Path('/tmp/root-head-confirmation-preparation-audit.json')
 path.write_text(json.dumps(report, indent=2)+'\n')
 print(json.dumps(report, indent=2), flush=True)
