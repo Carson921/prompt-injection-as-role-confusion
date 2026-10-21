@@ -219,3 +219,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 四卡新bank提取进程已启动，原MXFP4模型加载完成，禁写采集hook的最终hidden states逐bit一致检查通过；[启动记录](outputs/local-gptoss120b/systemness-long-augmentation-preparation/gpu-extraction-launch.json)仅记录运行状态，不是完成或accuracy证明。[匹配训练入口](systemness_long_augmentation_probes.py)及[训练协议](outputs/local-gptoss120b/systemness-long-augmentation-probes/protocol.json)已在任何新验证概率访问前冻结，[合成/独立CPU审查](outputs/local-gptoss120b/systemness-long-augmentation-preparation/trainer/preparation.json)通过；只有同一提取进程正常退出并验证完整bank后才能启动训练。正式报告仍保留六条模型/阈值记录，new-maximin若不满足预声明保护条件则不晋级，不回退挑选其他条目冒充通过。
+
+
+下一批确认的[前瞻设计](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/root-prospective-design.json)拟使用528个全新C4来源（400一般＋另128个真正1024正文）及128个全新公开自然对话。新模型、matched和旧head共3个实际网络；旧head两阈值共享同一概率，仅system判断不同。C4图库固定12个一般来源、另4个完整system长文来源和位置曲线，自然图库固定6OA＋6TC及汇总，分别17/13对图；均先于概率固定，不挑高分样本。旧128段自然对话不再作为本轮新独立证明。模型须先完成开发晋级与实际独立审计才能声明测试快照；当前未选择任何新增测试ID、材料化新回复或启动测试推理。
