@@ -260,3 +260,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 [多seed训练入口](systemness_multiseed_ensemble.py)、[正式声明](outputs/local-gptoss120b/systemness-multiseed-ensemble/protocol.json)及[19项CPU/25项独审证据](outputs/local-gptoss120b/systemness-multiseed-ensemble-preparation/trainer/preparation.json)现已在训练前冻结。主进程、worker和portable复算明确统一4个CPU线程与highest matmul设置；三新模型固定、缺成员即失败，正式只读验证不能隐式重算或改写旧控制。该源码发布点尚无新seed训练结果，后续只有root启动正式训练与实际独审。
+
+
+多seed试验现已正常完成：[六条开发记录](outputs/local-gptoss120b/systemness-multiseed-ensemble/report.txt)、[实际独立结果审计](outputs/local-gptoss120b/systemness-multiseed-ensemble/actual-audit/actual-development-audit.json)与[预算/漂移/负结果发布清单](outputs/local-gptoss120b/systemness-multiseed-ensemble/results-publication.json)。新增三个seed实际14/17/11轮、1988/2414/1562次更新，best分别6/9/3轮；固定四模型等权均值的min24为90.16%，较旧CPU-maximin的89.78%提高0.384个百分点，old5平均system F1为97.10%。但原full尾部F1较旧CPU-maximin下降0.135个百分点，违反预先固定的不退步条件，故仍未晋级，不挑singleton回退。六记录/54行与全部网格、模型/概率/历史、均值和CPU漂移独审最大指标差5.56e-16。没有读取独立测试来选择模型、没有声明本轮新测试快照，原正式模型保留；新增自然训练覆盖与受控long比例仍是优先后续方向。
