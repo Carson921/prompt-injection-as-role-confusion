@@ -129,11 +129,26 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 在本轮头验证开始前，下一组联合读出的[条件协议](outputs/local-gptoss120b/systemness-head-scan/readout-preparation/conditional-protocol.json)及源码也已固定：以原755282行提取选定8头的512维F16特征，约0.720GiB；在相同578090个densefit位置上比较8头概率平均LDA、联合线性、MLP64及MLP128，验证仍为173032行。训练与验证保持正常system标签。联合模型使用fit-only新scaler，LDA保留原始头向量；分类器、缩放与旧模型的特征均有变化，不称为纯因果消融。晋级须平均system F1严格提高、完整长文及尾部F1不降，并通过逐组FPR、原四组F1及五分类准确率限制；否则只保留诊断结果。该协议发布时尚未启动新的特征提取或读出训练，当前模型不变。[特征入口](systemness_head_extract.py)、[四候选入口](systemness_head_probes.py)。
 
-已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)完成四卡特征提取，原进程正常退出；[完成记录](outputs/local-gptoss120b/systemness-head-features/extraction-complete.json)核验755282×512个F16特征全部有限且无空行，行表SHA与旧8640维库完全相同。实际hook不改hidden states，portable概率最大差8.11e-15；BF16→F16往返最大差2.99e-8，后者不代表所有BF16值均可精确保存。未读取测试或改变主模型。四候选联合读出训练已启动，尚无新的独立确认收益可报告。
+已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)完成四卡特征提取，原进程正常退出；[完成记录](outputs/local-gptoss120b/systemness-head-features/extraction-complete.json)核验755282×512个F16特征全部有限且无空行，行表SHA与旧8640维库完全相同。实际hook不改hidden states，portable概率最大差8.11e-15；BF16→F16往返最大差2.99e-8，后者不代表所有BF16值均可精确保存。四候选读出也已全部正常完成，仍未读取新测试或改变主模型。
 
 后续[条件确认协议](outputs/local-gptoss120b/systemness-head-confirmation-preparation/conditional-protocol.json)及[独立入口](systemness_head_confirm.py)在新读出训练开始前固定，只有完成验证并通过晋级约束的候选才能准备新测试。先冻结残差、已发布attention、dense128和所选head四模型及阈值，再从相同固定C4快照另取400篇一般原文和64篇真实1024正文，排除包括最近464篇确认在内的全部已知来源。报告四模型逐组及完整尾部指标、2000次来源配对区间、12个固定来源的5×4角色概率图及分位置曲线。34项CPU检查和独立审查已通过，包括完整合成尾部、图集和缓存/来源/模型签名篡改拒绝；尚未准备或推理这批新测试。
 
-混合头验证完成后，由[单独报告入口](systemness_head_probes_report.py)只读冻结的dense128与四候选概率，复算五profile及尾部指标、记录所有未晋级原因，生成12个预定C4验证来源的五角色×五模型tomato图以及F1和分位置曲线。每个单消息角色版本为原有64个评分采样位置，不能声称全正文覆盖；这些仍是开发验证，不算新增独立测试。[报告规格与15项CPU检查](outputs/local-gptoss120b/systemness-head-probes-report-preparation/report-spec.json)及7项独立CPU附审已固定，实际图集尚未生成。
+混合头验证的[单独报告入口](systemness_head_probes_report.py)已正常完成，只读冻结的dense128与四候选概率，复算五profile及尾部指标、记录所有未晋级原因，并生成12个预定C4验证来源的五角色×五模型tomato图以及F1和分位置曲线，共14对PNG/PDF。每个单消息角色版本为原有64个评分采样位置，不能声称全正文覆盖；这些仍是开发验证，不算新增独立测试。[报告规格与15项CPU检查](outputs/local-gptoss120b/systemness-head-probes-report-preparation/report-spec.json)及7项独立CPU附审已固定。[实际验证报告](outputs/local-gptoss120b/systemness-head-probes-report/report.txt)、[多样本图集](outputs/local-gptoss120b/systemness-head-probes-report/plots/gallery-index.md)、[分位置召回曲线](outputs/local-gptoss120b/systemness-head-probes-report/plots/validation-long-full-by-position.png)。
+
+预定规则选中joint-MLP128，system阈值0.620969696969697，模型SHA为27a22fea0e784caba9be2d777ecab892db85d30536c3eac46887d31283074266。两个MLP通过全部开发晋级约束；联合线性虽平均F1为95.24%，但自然组F1回退3.34个百分点、多轮五类准确率回退1.07点而未晋级。混合raw pooled LDA平均F1仅81.98%，负结果完整保留。MLP128的最佳checkpoint为第4轮/568更新，实际训练12轮/1704更新；MLP64为最佳第13轮/1846更新、实际21轮/2982更新，不能称为最终总步数严格匹配。[冻结选择](outputs/local-gptoss120b/systemness-head-probes/selection.json)。
+
+| 开发验证组 | 原dense128 system F1 | 联合MLP128 precision | recall | F1 | 五类准确率 |
+|---|---:|---:|---:|---:|---:|
+| 单消息 | 84.01% | 98.69% | 96.93% | 97.80% | 98.83% |
+| 构造多轮 | 98.21% | 99.68% | 99.07% | 99.37% | 99.26% |
+| 自然对话 | 95.66% | 96.22% | 100.00% | 98.07% | 90.23% |
+| up-to1024变体 | 78.71% | 95.72% | 96.34% | 96.03% | 97.12% |
+| 真正1024正文 | 67.21% | 97.08% | 93.12% | 95.06% | 96.92% |
+| 512–1023尾部 | 60.41% | 96.06% | 90.83% | 93.37% | 95.45% |
+
+五profile平均system F1为97.27%对84.76%（+12.51个百分点），完整长文及尾部F1分别提高27.85和32.96点；原四profile平均五类准确率为96.36%对87.74%，自然CoT recall为79.57%对50.36%。五profile及尾部的system P/R/BAcc在开发验证均超过90%，但这尚不证明独立测试达标。变化同时涉及选头特征、维度、scaler、分类器和提取batch，不能单独归因某一种注意力或训练因素。
+
+[独立实际审计](outputs/local-gptoss120b/systemness-head-probes-report/independent-audit/actual-audit.json)核对173032行、31篇长验证中的9920行尾部、阈值网格、所有晋级约束及MLP预算，指标差为0，24行CSV最大差1.12e-16。审计器v1在无tool支持的自然组recall差值处发生None相减，修正为N/A后，27项CPU检查和实际审计均正常退出；生产源、模型、阈值和概率均未改，[修订记录与失败证据](outputs/local-gptoss120b/systemness-head-probes-report/independent-audit/auditor-revision.json)保留。已通过开发晋级，因此未运行仅在未晋级时允许的融合备用试验；下一步仍须按既定协议执行另一批464篇去重原文确认。[发布证据清单](outputs/local-gptoss120b/systemness-head-probes-report/publication-complete.json)。
 
 新增自然对话的数据来源也已完成CPU准备和独立去重审查：[来源与模板提案](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/source-proposal.json)、[可重放入口](systemness_natural_sources.py)。固定OpenAssistant/oasst1与ToxicChat的官方revision及快照SHA，从2296个合格来源中按预定SHA顺序提出448个根对话，训练/验证/测试分别256/64/128，每组两来源均衡。排除全部200个旧请求，包括16次失败，以及旧OASST树和与旧ToxicChat文本对应的108个原生ID；全树用户文本、原文/规范化/标签清理后的正文和192-token前缀、URL均参与去重。ToxicChat的0124/1123训练用户文本和ID完全相同，更换该配置不能视为新样本。旧加载器未固定revision，不能追认其版本。
 
