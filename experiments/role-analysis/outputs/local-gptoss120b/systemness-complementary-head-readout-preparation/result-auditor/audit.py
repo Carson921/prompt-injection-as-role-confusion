@@ -9,7 +9,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 HERE=Path('/root/prompt-injection-as-role-confusion/experiments/role-analysis');BASE=HERE/'outputs/local-gptoss120b'
-SOURCE=HERE/'systemness_complementary_head_readout.py';SOURCE_SHA=None;PROTOCOL_SHA=None
+SOURCE=HERE/'systemness_complementary_head_readout.py';SOURCE_SHA='e74e40889ba49ab05815f0faac68c2a522ccc06627b09ff14379929bc53dbdf6';PROTOCOL_SHA='10c92c0af904b96d42e1ff8c9cbc12f7efb0371da08fdc3962aebd7b8d0d6f54'
 DESIGN=BASE/'systemness-complementary-head-readout-preparation/root-prospective-design.json';DESIGN_SHA='f3dae68aae0003daf7382c925978313f984911cf428401d1bdd1eaa3b161c314'
 OUT=BASE/'systemness-complementary-head-readout';CACHE=BASE/'systemness-expansion/cache/complementary-head-readout'
 PRIOR_OUT=BASE/'systemness-long-mix-residual';PRIOR_AUDIT=PRIOR_OUT/'actual-audit/actual-development-audit.json';PRIOR_AUDIT_SHA='6dadc3a34ff9ea2c5c3415930051876165b529f3983d77eed757456259a1e58e'
