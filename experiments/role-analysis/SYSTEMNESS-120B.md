@@ -112,6 +112,21 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 下一项[注意力头筛选实验](systemness_head_scan.py)扫描全部36层×64个query head，在o_proj之前读取每头64维向量；语言模型仍为冻结MXFP4。原132篇完整长fit原文按document_id%5划成101篇统计训练和31篇头筛选，两组都属于fit；每头用固定收缩LDA，在31篇上按原文平均的全位置/512+尾部AUROC等权选8头，再用全部132篇fit的统计量重拟合。8头的五类概率等权平均，只读取当前token的特征，不把位置、标签或配对作为推断输入。全层特征在线累计统计，不保存全层原始激活。
 
-方法与数据已[提前冻结](outputs/local-gptoss120b/systemness-head-scan/plan.json)，数学、padding、hook不改激活、退化head和portable聚合均通过[CPU检查](outputs/local-gptoss120b/systemness-head-scan/cpu-preflight.json)。随后只在原173032行、五种native验证组上校准一个全局阈值和评估；头筛选只用31篇fit，2304选8仍可能过拟合。此诊断尚不能视为提升，也不替换当前模型，不读取已报告464篇或旧测试来决定方法。若得到新候选，仍需另取去重的新原文确认。
+方法与数据已[提前冻结](outputs/local-gptoss120b/systemness-head-scan/plan.json)，数学、padding、hook不改激活、退化head和portable聚合均通过[CPU检查](outputs/local-gptoss120b/systemness-head-scan/cpu-preflight.json)。扫描及原173032行、五种native组的验证均已正常完成。8头来自7/15/31层（分别5/1/2个），均为full_attention；这是fit内筛选结果，不能归因为全局注意力的单独因果效果。全局system阈值为0.41935353535353537。
+
+| 原验证组system F1 | dense-MLP128 | 8头概率平均LDA |
+|---|---:|---:|
+| 单消息 | 84.01% | 79.86% |
+| 构造多轮 | 98.21% | 83.42% |
+| 自然对话 | 95.66% | 93.69% |
+| 原up-to1024长变体 | 78.71% | 84.05% |
+| 真正1024正文 | 67.21% | 76.83% |
+| 512–1023尾部 | 60.41% | 75.33% |
+
+完整长文的P/R为79.12%/74.67%，尾部为76.83%/73.89%；五组平均F1从84.76%降至83.57%，原四组五分类平均准确率从87.74%降至70.49%，自然CoT recall从50.36%降至11.24%。因此保留长文收益和其他组回退，不替换当前主模型。五profile的FPR均≤5%，尾部FPR为5.57%，不在该约束内。此LDA只使用132篇长fit，而dense模型使用混合578090行，特征、分类器和训练分布均不同，不能把差值单独归因于选头。
+
+[验证报告](outputs/local-gptoss120b/systemness-head-scan/head-validation-report.txt)、[逐组指标](outputs/local-gptoss120b/systemness-head-scan/head-validation-comparison.csv)、[2304头排名](outputs/local-gptoss120b/systemness-head-scan/discovery-head-metrics.csv)、[排名热图](outputs/local-gptoss120b/systemness-head-scan/plots/discovery-head-score-heatmap.png)、[P/R/F1比较图](outputs/local-gptoss120b/systemness-head-scan/plots/validation-systemness-comparison.png)。[独立实际结果审计](outputs/local-gptoss120b/systemness-head-scan/independent-results-audit.json)从保存概率重算所有头的AUROC/排名及全部验证指标，合并132篇重拟合的权重和bias逐bit一致。头筛选只用31篇fit，2304选8仍可能过拟合；当前只是复用开发验证，不读取已报告464篇或旧测试来决定方法。新候选仍需另取去重的新原文确认。
 
 在本轮头验证开始前，下一组联合读出的[条件协议](outputs/local-gptoss120b/systemness-head-scan/readout-preparation/conditional-protocol.json)及源码也已固定：以原755282行提取选定8头的512维F16特征，约0.720GiB；在相同578090个densefit位置上比较8头概率平均LDA、联合线性、MLP64及MLP128，验证仍为173032行。训练与验证保持正常system标签。联合模型使用fit-only新scaler，LDA保留原始头向量；分类器、缩放与旧模型的特征均有变化，不称为纯因果消融。晋级须平均system F1严格提高、完整长文及尾部F1不降，并通过逐组FPR、原四组F1及五分类准确率限制；否则只保留诊断结果。该协议发布时尚未启动新的特征提取或读出训练，当前模型不变。[特征入口](systemness_head_extract.py)、[四候选入口](systemness_head_probes.py)。
+
+当前已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)启动四卡特征提取；联合读出的训练和验证尚未完成，没有新的独立确认收益可报告。

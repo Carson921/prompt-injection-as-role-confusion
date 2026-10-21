@@ -1,0 +1,68 @@
+GPT-OSS-120B pre-projection head diagnostic — VALIDATION ONLY
+
+Frozen native MXFP4 model;36 zero-based layers x64 query heads,64 dimensions/head.
+LDA statistics fit on101 original fit long documents; actual discovery probabilities use31 other fit documents.
+The discovery31 documents and the original long-full validation31 documents are disjoint.
+Top8 are selected from2304 heads using average all-position/tail512+ source-doc-macro system AUROC,
+then refitted on all132 original long-fit documents. Discovery scores are selected development results, not held-out F1.
+Inference averages8 current-token five-class probability vectors. No role label, position or pairing is an inference input.
+
+Each model uses one global validation threshold across all five profiles with the same per-profile FPR rule.
+Thresholds may differ between models. Mean5 includes long-full and must not be compared directly with an earlier four-profile89% mean.
+Values are percentages; differences are percentage points (head minus dense128).
+
+Aggregate validation comparison
+model             Mean5-F1 Original4-F1 Original4-fiveAcc natural-CoT
+dense-mlp128         84.76        89.15             87.74       50.36
+top8-head-lda        83.57        85.25             70.49       11.24
+Mean5 F1 difference: -1.19pp
+
+Per-profile validation metrics
+model/profile                    tokens      P      R     F1   BAcc fiveAcc    FPR
+dense-mlp128/single                  64000  85.77  82.32  84.01  89.45   89.73   3.41
+dense-mlp128/multi                   55258  99.52  96.94  98.21  98.42   98.78   0.09
+dense-mlp128/natural                 17934  91.69 100.00  95.66  99.83   76.85   0.35
+dense-mlp128/long-single             16000  83.54  74.41  78.71  85.37   85.60   3.66
+dense-mlp128/long-full               19840  75.26  60.71  67.21  77.86   77.69   4.99
+dense-mlp128/long-full-tail           9920  69.65  53.33  60.41  73.76   72.19   5.81
+top8-head-lda/single                 64000  84.42  75.77  79.86  86.13   80.74   3.50
+top8-head-lda/multi                  55258  82.36  84.51  83.42  90.47   54.15   3.57
+top8-head-lda/natural                17934  89.21  98.64  93.69  99.09   56.28   0.46
+top8-head-lda/long-single            16000  83.97  84.12  84.05  90.05   90.78   4.02
+top8-head-lda/long-full              19840  79.12  74.67  76.83  84.87   87.06   4.93
+top8-head-lda/long-full-tail          9920  76.83  73.89  75.33  84.16   85.00   5.57
+
+Selected query-head pattern (descriptive; no causal attribution)
+rank  layer head   discovery-all-AUROC discovery-tail-AUROC selection-score
+   1      7   10                 92.96                  93.38           93.17
+   2      7   14                 91.74                  92.25           91.99
+   3     31   61                 92.81                  90.88           91.84
+   4      7   12                 90.43                  91.66           91.04
+   5      7   11                 88.96                  90.13           89.54
+   6     31   63                 89.33                  89.11           89.22
+   7      7    8                 88.22                  89.68           88.95
+   8     15   37                 88.18                  88.10           88.14
+Selected layers/counts: {"7": 5, "15": 1, "31": 2}
+Unique selected layers: 3; query-head indices: [8, 10, 11, 12, 14, 37, 61, 63].
+A head index reused at different layers denotes different parameters. Layer concentration is descriptive;
+this selection does not establish that a layer or attention type causes systemness.
+
+Position, source and selection limitations
+Original long-full validation:31 source documents,128 uniformly sampled content positions/role/document;
+tail512..1023 contains64 sampled positions/role/document (1984 system positions), not every token in the interval.
+The31 long-full documents are a subset of the original200 C4 validation sources;10 also have old long-single versions.
+The all/tail summary does not establish a continuous position curve or guarantee every1024-token position is classified correctly.
+Natural-role metrics come from the original40-conversation validation profile; CoT and five-role accuracy can trade off with systemness.
+Head selection used only long-full fit texts, whereas dense128 used mixed profiles. Architecture, training distribution and objective differ;
+the comparison is a diagnostic benchmark, not a matched causal ablation of head selection alone.
+Choosing8 out of2304 on31 fit-discovery sources and repeatedly reusing the original validation can overfit.
+Tokens/roles from one source are dependent; discovery AUROC, validation F1 and independent confirmation are distinct evidence.
+
+No automatic promotion or current-primary change is performed by this report.
+Existing frozen primary: dense/dense-mlp128
+Existing primary model: /root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-long-full/models/dense-mlp128.npz
+Existing primary model SHA256: 0348c3e8358deff3923ac40352b1fa1cae27c3b312cbc811d63284292cfd33f4
+Diagnostic head model: /root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-head-scan/models/top8-lda.npz
+Diagnostic head model SHA256: cb17c086bf5b557472daceaf3c8edf3c8ab4a9e4e770424e277bcf41f52c8992
+Figures: plots/discovery-head-score-heatmap.{png,pdf}, plots/validation-systemness-comparison.{png,pdf}.
+This report verifies result JSON/CSV consistency and hashes, but does not recompute predictions or open model/probability files.
