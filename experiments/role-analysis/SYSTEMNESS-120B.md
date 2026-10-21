@@ -285,3 +285,10 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 下一项[system专门残差头正式前瞻设计](outputs/local-gptoss120b/systemness-binary-residual-preparation/root-prospective-design.json)已在新训练/概率前固定：旧MLP128和scaler冻结且永久eval，仅system原始logit加4*tanh(512→32→1残差)，末层零初始化；其余四类rawlogits逐bit不变。两arm仍使用旧578090+clean63403/157步，并复用同一逐槽角色匹配抽样；二元BCE不附加新惩罚、不搜索bound/seed。报告10条模型/阈值记录，另有零残差同路径控制，原五类p.argmax定义不改。晋级仍须11组min33≥90%、严格胜matched/旧head/ensemble及零残差同目标控制，全部旧防退步条件和savedGPU floors保留。该路线不能保证长文尾部改善，也不能保证非system不被改判system；尚未实现完成或运行新训练。
+
+
+System专门残差头的正式训练与复核已完成：[10条开发记录](outputs/local-gptoss120b/systemness-binary-residual/report.txt)、[110行组指标＋10行pool](outputs/local-gptoss120b/systemness-binary-residual/validation-metrics.csv)、[零残差22＋2行控制](outputs/local-gptoss120b/systemness-binary-residual/zero-control-metrics.csv)、[实际独审](outputs/local-gptoss120b/systemness-binary-residual/actual-audit/actual-development-audit.json)、[完整发布记录](outputs/local-gptoss120b/systemness-binary-residual/results-publication.json)。两组实际均11轮/1727次更新，best均3轮/471次更新；原120B MXFP4及原探针参数冻结，只训练16449个残差参数，没有新LM前向。独立CPU functional consumer逐行重算new/matched/zero各251185个开发位置，概率逐bit一致，144行指标最大差4.44e-16；继承控制引用上轮b8de已审计固定缓存。本轮两新模型GPUold/CPUold最大漂移约1.91e-6/1.88e-6，原argmax与原阈值决策均0变化；零残差与原CPU控制概率差为0。
+
+新模型全部四类non-system原始logits保持逐bit一致，所有开发位置的非system不同类winner交换为0；旧natural CoT recall为79.7205%、五类accuracy90.3256%，相对上一轮CE的64.0534%/83.4058%避免明显破坏，原head本来已有79.5722%/90.2253%，因此不能称为CoT瓶颈已解决。new-max33的min33为89.9089%，低于90%及matched89.9756%和ensemble90.1626%；新C4尾部P/R/F1仅89.9381%/89.9089%/89.9235%，旧尾部F1为93.2323%，较旧head-max33仍退0.3005个百分点。全部预定gate与失败记录保留，不晋级、不启动新独立测试，也不改旧阈值/正式模型。
+
+本轮[固定16来源图集](outputs/local-gptoss120b/systemness-binary-residual-development-plots/gallery-index.md)已实际生成16对PNG/PDF：6OA＋6TC＋4带CoT的legacy自然对话，每图五个读出器、五行角色概率，共[80行例级计数](outputs/local-gptoss120b/systemness-binary-residual-development-plots/example-metrics.csv)。来源rank在新候选训练前固定，所有例子保留；逐真实token位置散点、缺口不补点、不平滑，已查看OA与legacy首例。全部是复用开发数据，并非新的独立确认；后续会检查精确阈值可行性和bound4理论上界，以判断更有价值的下一步，不能据此改写本轮负结果。
