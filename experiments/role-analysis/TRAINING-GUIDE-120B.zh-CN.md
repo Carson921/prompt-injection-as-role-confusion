@@ -318,6 +318,8 @@ C4 的 5 个主组与 6 个位置箱、自然的 all/clean×总体/OASST/ToxicCh
 
 *图 6：真实标签只有 system、user、assistant，仍展示全部五个输出概率。CoT/tool 有概率曲线不等于它们有测试真值；这两类 recall 为 N/A。图中个别 user 位置有较高 Toolness，也说明分类仍会混淆。公开回复的生成模型不是这轮 120B，不能据图评价 120B 在新 system 指令下的回答质量。*
 
+这张图对应的完整英文对话已导出为 [conversation JSON](examples/fresh-natural-06.messages.json)；[案例说明](examples/fresh-natural-06.md)给出了中文转述、逐角色判对数量和来源核对方法。本例最优分类器判对 185/188 个正文 token，五类 argmax 准确率为 98.40%。
+
 自然组并非所有数字都由 new 领先：matched 的总体 system F1 比 new 高约 **0.024 个百分点**，差异区间跨 0。所以我们选择的是更好满足整体目标、尤其补足长文短板的方案，不是逐项全胜的方案。
 
 ### 4.5 这轮结论的边界
