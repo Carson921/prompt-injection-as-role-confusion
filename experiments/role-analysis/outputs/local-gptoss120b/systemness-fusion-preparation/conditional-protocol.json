@@ -1,0 +1,89 @@
+{
+  "source_sha256": "8974671d25166cae440e230b8d193a10708a5014764ef302e7cbce6d0099cb7d",
+  "dependencies_sha256": {
+    "run_local_gptoss120b.py": "0f3098052a2ad4a1d5d08c06fcf4bff1bd43fa9bd4ee3517df2c439799556406",
+    "systemness_attention.py": "c126ce1a63d06b32789fea454067a80626807b126d7465d62c04b0eb274290ec",
+    "systemness_data.py": "de6b38c0bdc80e05783eb14aeb3a4d14fcf09c2c046fdf4756f90f6b1d3dcd9a",
+    "systemness_head_extract.py": "545365205955ba3677e2ace0d64333ae78e39227cefbac0c0cd968dc6610f653",
+    "systemness_head_fusion.py": "8974671d25166cae440e230b8d193a10708a5014764ef302e7cbce6d0099cb7d",
+    "systemness_head_probes.py": "fb2e72f60257ce8b556d80147d9bbb889dd38465a97cb521bb79e139bb7f12dc",
+    "systemness_head_scan.py": "6095e77d8ecf9cc22fb51169bdd126ec1f69efe9d3b59575b9e4b9094ba29ecd",
+    "systemness_long_data.py": "8ba5b7978db425bc4f1557d718d3679559b4edc2b9a8d68749f664cb256a0b15",
+    "systemness_long_probes.py": "9de351ba517c509f0cdf234bf1a79cfbadc2ae843d37d62e7cdb99c09e037f95",
+    "systemness_probes.py": "59bacbf87d72a86af216e51ea12c20717da90b09f05a66d4b7d4b79668560c15"
+  },
+  "design_sha256": "399a547177752f8aa53adbf542569c8b88d1d568bc8bf51963bdb2d8e4eeadc2",
+  "protocol": {
+    "version": 1,
+    "design_path": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-fusion-preparation/conditional-design-v1.json",
+    "design_sha256": "399a547177752f8aa53adbf542569c8b88d1d568bc8bf51963bdb2d8e4eeadc2",
+    "candidates": {
+      "delta-linear": {
+        "hidden": 0,
+        "dropout": 0.0
+      },
+      "delta-mlp32": {
+        "hidden": 32,
+        "activation": "GELU",
+        "dropout": 0.1
+      }
+    },
+    "delta_bound": 4.0,
+    "delta": "4*tanh(g(head512)/4)",
+    "zero_final_layer": true,
+    "base_dimensions": 8640,
+    "head_dimensions": 512,
+    "roles": [
+      "system",
+      "user",
+      "cot",
+      "assistant",
+      "tool"
+    ],
+    "head_scaler": "Byte-copy completed head-probes densefit-only scaler.",
+    "baseline": "Frozen dense-mlp128 raw logits, with its embedded original8640 scaler; only system column receives delta.",
+    "cache": {
+      "rows": 755282,
+      "classes": 5,
+      "dtype": "float32",
+      "bytes": 15105640,
+      "chunk": 4096,
+      "progress": "Atomic NaN initialization; every16 chunks flush/fsync and exact completed-prefix hashes."
+    },
+    "zero_control": "Full173032 frozen-p parity and decisions; original-threshold and same-helper-retuned metrics, not a candidate.",
+    "training": {
+      "seed": 20261021,
+      "fit_rows": 578090,
+      "validation_rows": 173032,
+      "batch_size": 4096,
+      "steps": 142,
+      "last_batch_instances": 554,
+      "optimizer": "AdamW",
+      "lr": 0.001,
+      "weight_decay": 0.001,
+      "clip": 5.0,
+      "max_epochs": 45,
+      "min_epochs": 10,
+      "patience": 8,
+      "loss": "Full five-class mean CE",
+      "workers": 2
+    },
+    "guards": "Against original dense AND delta0-cache-retuned: original4 F1 loss<=.02, accuracy loss<=.01, full/tail F1 nondecrease,5profile FPR<=.05; tolerance1e-12.",
+    "promotion": "Maximum mean F1 among dual-guard eligible candidates, strictly above max(two controls)+1e-12; otherwise diagnostic only.",
+    "portable": "Raw8640+raw512; hash-bound frozen base; full173032 zero and nonzero checks, independent CPU check.",
+    "tests_read": false,
+    "primary_changed": false,
+    "fresh_confirmation_required": true,
+    "limitation": "Development validation is reused. Both banks have identical rows but different LM extraction batches; this is not an isolated causal head ablation. Only the system logit changes. The other four raw logits, conditional probabilities and their internal argmax ordering remain unchanged; absolute probabilities, global argmax and CoT recall can change. Five-class CE has the same correction gradient as binary system-vs-nonsystem CE; the conditional non-system class loss is constant. A positive result needs new independent confirmation. Delta-zero numerical controls are not a third trained candidate."
+  },
+  "evidence_sha256": {
+    "cpu-preflight.json": "4267ffc3931a14442391372fa5a180b9a4d430c53fbe41a6558ede7205c9d5bb",
+    "independent-audit.json": "e2562ee618c9e5cf7b0d17cda9fa049053343e0f2e2d5003a492a9869d7c3d28",
+    "independent-audit.py": "30a4311e74eb5f3ddbee3fae3404643612537a1b2e7d4b5071e1f54badfd0cb9"
+  },
+  "formal_training_started": false,
+  "head_readout_training_started": false,
+  "tests_read": false,
+  "primary_changed": false,
+  "actual_numerical_parity_not_yet_verified": true
+}
