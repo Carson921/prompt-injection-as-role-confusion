@@ -129,7 +129,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 在本轮头验证开始前，下一组联合读出的[条件协议](outputs/local-gptoss120b/systemness-head-scan/readout-preparation/conditional-protocol.json)及源码也已固定：以原755282行提取选定8头的512维F16特征，约0.720GiB；在相同578090个densefit位置上比较8头概率平均LDA、联合线性、MLP64及MLP128，验证仍为173032行。训练与验证保持正常system标签。联合模型使用fit-only新scaler，LDA保留原始头向量；分类器、缩放与旧模型的特征均有变化，不称为纯因果消融。晋级须平均system F1严格提高、完整长文及尾部F1不降，并通过逐组FPR、原四组F1及五分类准确率限制；否则只保留诊断结果。该协议发布时尚未启动新的特征提取或读出训练，当前模型不变。[特征入口](systemness_head_extract.py)、[四候选入口](systemness_head_probes.py)。
 
-当前已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)启动四卡特征提取；联合读出的训练和验证尚未完成，没有新的独立确认收益可报告。
+已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)完成四卡特征提取，原进程正常退出；[完成记录](outputs/local-gptoss120b/systemness-head-features/extraction-complete.json)核验755282×512个F16特征全部有限且无空行，行表SHA与旧8640维库完全相同。实际hook不改hidden states，portable概率最大差8.11e-15；BF16→F16往返最大差2.99e-8，后者不代表所有BF16值均可精确保存。未读取测试或改变主模型。四候选联合读出训练已启动，尚无新的独立确认收益可报告。
 
 后续[条件确认协议](outputs/local-gptoss120b/systemness-head-confirmation-preparation/conditional-protocol.json)及[独立入口](systemness_head_confirm.py)在新读出训练开始前固定，只有完成验证并通过晋级约束的候选才能准备新测试。先冻结残差、已发布attention、dense128和所选head四模型及阈值，再从相同固定C4快照另取400篇一般原文和64篇真实1024正文，排除包括最近464篇确认在内的全部已知来源。报告四模型逐组及完整尾部指标、2000次来源配对区间、12个固定来源的5×4角色概率图及分位置曲线。34项CPU检查和独立审查已通过，包括完整合成尾部、图集和缓存/来源/模型签名篡改拒绝；尚未准备或推理这批新测试。
 
