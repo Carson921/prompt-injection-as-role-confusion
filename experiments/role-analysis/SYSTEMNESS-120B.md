@@ -207,7 +207,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 首版新maximin分支发现NumPy2的F32概率/F64分位阈值边界计数差异，已[原样归档并明确已知问题](outputs/local-gptoss120b/systemness-head-calibration-diagnostic-v1/known-issue-and-completion.json)；单独v2在真实概率访问前[冻结源码和协议](outputs/local-gptoss120b/systemness-head-calibration-v2-preparation/root-approval.json)，仅修复新maximin分支。旧mean-F1控制及既有正式模型/阈值均未改动。实际v2对所有混合权重、每个网格阈值直接计数，44460项P/R/BAcc统计差为0；原5条mean-F1记录与首版相同。[完成及复核记录](outputs/local-gptoss120b/systemness-head-calibration-v2/completion-and-review.json)。这些结果不能当作新独立确认；下一轮拟增加256个独立长正文fit来源及96个validation来源，并以等量旧长文重复采样作训练预算对照。
 
 
-下一轮[长正文扩展设计](outputs/local-gptoss120b/systemness-long-augmentation-preparation/prospective-experiment-design.json)已在新候选正文读取前声明。固定扫描未使用的4111–12302行，选256个fit及96个validation真1024-token来源；不足即停，不扩大窗口。新数据与旧578090行组合训练MLP128，另设增加等量旧132篇长文重复采样的匹配控制；两者每轮905770行、222次更新，使用相同旧fit-only scaler及初始权重，实际早停步数另报。六条模型/阈值记录完整保留，只有预定new-maximin候选可晋级，须同时胜过matched与纯重新校准控制并通过逐组退步限制。新增96篇属于开发验证，之后仍须全新来源确认。当前只处于实现/CPU检查阶段，未完成新来源准备、特征提取或训练，不能计为准确率提升。
+下一轮[长正文扩展设计](outputs/local-gptoss120b/systemness-long-augmentation-preparation/prospective-experiment-design.json)已在新候选正文读取前声明。固定扫描未使用的4111–12302行，选256个fit及96个validation真1024-token来源；不足即停，不扩大窗口。新数据与旧578090行组合训练MLP128，另设增加等量旧132篇长文重复采样的匹配控制；两者每轮905770行、222次更新，使用相同旧fit-only scaler及初始权重，实际早停步数另报。六条模型/阈值记录完整保留，只有预定new-maximin候选可晋级，须同时胜过matched与纯重新校准控制并通过逐组退步限制。新增96篇属于开发验证，之后仍须全新来源确认。该声明发布时处于实现/CPU检查阶段；后续来源准备及实际独审已完成，四卡特征提取正在进行，新模型训练成绩尚未产生。
 
 
 扩展长正文的正式CPU准备已正常退出：固定8192行中752条达到1024-token最低长度，精确正文/前缀去重后751条，按冻结规则取352个新来源并独立划分fit256/validation96。历史2828个已知C4来源已恢复完整/192/1024前缀指纹，并排除原249两份库存；原249缺完整URL/行号的限制仍保留。[准备完成](outputs/local-gptoss120b/systemness-long-augmentation/data-complete.json)、[扫描](outputs/local-gptoss120b/systemness-long-augmentation/scan-audit.json)、[排除审计](outputs/local-gptoss120b/systemness-long-augmentation/exclusion-audit.json)。共1760个native输入、1814032输入tokens，独立解析1802240个完整内容位置后取389120个特征位置，五类严格等量、system标签正常保留。新数据尚未证明准确率收益。
@@ -216,3 +216,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 新352篇来源的[实际独立重放审计](outputs/local-gptoss120b/systemness-long-augmentation/preparation-audit/actual-source-replay.json)已正常退出：从固定C4 archive恢复2828个历史来源与352个新来源及原249双库存的完整/192/1024指纹，未发现行号、URL或正文/前缀碰撞；用独立native解析核对全部1760输入、1802240正文位置和389120抽样位置。独审未重新扫描未选中的窗口候选排序，原249的行号/URL限制不变；不读取任何分类器概率。[来源准备发布清单](outputs/local-gptoss120b/systemness-long-augmentation/source-preparation-publication.json)。后续四卡提取不修改这批已完成源材料。
+
+
+四卡新bank提取进程已启动，原MXFP4模型加载完成，禁写采集hook的最终hidden states逐bit一致检查通过；[启动记录](outputs/local-gptoss120b/systemness-long-augmentation-preparation/gpu-extraction-launch.json)仅记录运行状态，不是完成或accuracy证明。[匹配训练入口](systemness_long_augmentation_probes.py)及[训练协议](outputs/local-gptoss120b/systemness-long-augmentation-probes/protocol.json)已在任何新验证概率访问前冻结，[合成/独立CPU审查](outputs/local-gptoss120b/systemness-long-augmentation-preparation/trainer/preparation.json)通过；只有同一提取进程正常退出并验证完整bank后才能启动训练。正式报告仍保留六条模型/阈值记录，new-maximin若不满足预声明保护条件则不晋级，不回退挑选其他条目冒充通过。
