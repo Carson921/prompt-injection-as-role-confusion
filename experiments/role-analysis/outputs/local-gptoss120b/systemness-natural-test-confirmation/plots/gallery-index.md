@@ -1,0 +1,14 @@
+Fixed12 test source IDs selected without scores; failed sources stay as placeholders. Truth labels are S/U/A only. CoT/tool probability rows do not imply observed CoT/tool truth.
+
+- [oasst:09cea2a5-227b-4494-a85c-bc32d0342acf](natural-test-00.png)
+- [oasst:280e74fe-d3c6-46e1-8b2f-70c221145b1a](natural-test-01.png)
+- [oasst:59ed5e02-dedb-41c4-8b51-b2878c8b8239](natural-test-02.png)
+- [oasst:7fb167b2-d30a-48cc-b111-08f84ce33546](natural-test-03.png)
+- [oasst:b8f17541-ae19-4c3a-aba8-7eaedd04b0de](natural-test-04.png)
+- [oasst:e60fe49c-a521-4a4f-86d3-d87ba6adf1e2](natural-test-05.png)
+- [toxicchat0124:0f2fe4ae97dcb9d44fc4ef7b215ced1080dca85be6f6ce4f8a291390546e2a54](natural-test-06.png)
+- [toxicchat0124:3ce3096f741e133e5514aba6ef1be551a99971bc99adc109fbd8dbf9c12722a2](natural-test-07.png)
+- [toxicchat0124:74504ba376a7dbb536f21e2a0bc85b707082d2da027b2a6e82d377f84eaa9da7](natural-test-08.png)
+- [toxicchat0124:a9d7b2c25afd6d1c22bec004f5a1d6ef9b115bc34dd6127b78fe8c699fe5f03e](natural-test-09.png)
+- [toxicchat0124:cbc887ef582e7e762180ba72b7691146ef3317e419a4cc55fcee43e76cbf10dd](natural-test-10.png)
+- [toxicchat0124:fd12020fb52c08737b07011c1e39a4e9466f97bea12f4c4776810f2073205070](natural-test-11.png)
