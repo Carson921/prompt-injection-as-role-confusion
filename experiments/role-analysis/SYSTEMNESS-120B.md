@@ -282,3 +282,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 预定new-max33的最低P/R/BAcc为90.2407%，略高于matched89.6810%、旧head89.7786%和继承ensemble90.1626%，old5平均system F1为97.3544%。仍没有晋级：旧natural五类accuracy从旧head90.2253%降到83.4058%（−6.8194个百分点），CoT recall从79.5722%降到64.0534%；新模型8087个旧CoT位置有2491个被判assistant。这与新公开自然fit只有S/U/A的覆盖差异相符，但不是该差异的因果证明。旧full尾部system F1相对旧head-max33下降0.5002个百分点、相对ensemble下降0.3650个百分点，虽然新96篇C4尾部F1改善，也违反预先固定的不退步条件。public64组system P/R为100%只是反复使用的开发结果，不能解释为全新测试准确率。
 
 原savedGPU概率/0.620969696969697阈值保留；本次同CPU路径旧head完整old验证概率最大漂移1.91e-6、argmax和原阈值决策均0变化，继承ensemble的old/newC4概率漂移为0。MLP训练只更新读出器，120B底座保持原MXFP4冻结，特征前向使用4张A40；所有结果与失败理由完整保留，正式模型不变，未选择新测试来源或给失败候选生成确认图集。下一步优先考虑单独训练system二分类并固定非system条件分布，或增加保持旧四类能力的训练约束；这种改动仍需新协议、同等对照及全新长文/自然确认。
+
+
+下一项[system专门残差头正式前瞻设计](outputs/local-gptoss120b/systemness-binary-residual-preparation/root-prospective-design.json)已在新训练/概率前固定：旧MLP128和scaler冻结且永久eval，仅system原始logit加4*tanh(512→32→1残差)，末层零初始化；其余四类rawlogits逐bit不变。两arm仍使用旧578090+clean63403/157步，并复用同一逐槽角色匹配抽样；二元BCE不附加新惩罚、不搜索bound/seed。报告10条模型/阈值记录，另有零残差同路径控制，原五类p.argmax定义不改。晋级仍须11组min33≥90%、严格胜matched/旧head/ensemble及零残差同目标控制，全部旧防退步条件和savedGPU floors保留。该路线不能保证长文尾部改善，也不能保证非system不被改判system；尚未实现完成或运行新训练。

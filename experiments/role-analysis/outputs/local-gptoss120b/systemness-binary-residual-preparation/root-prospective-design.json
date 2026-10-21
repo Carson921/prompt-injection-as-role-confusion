@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "stage": "root_prospective_binary_system_residual_design_before_training_or_new_predictions",
+  "objective": "Improve native system P/R/BAcc including true1024 full/tail while retaining five-class role discrimination; later independent tests and multi-source tomato plots still required.",
+  "background": {
+    "previous_turn": "progress: natural-fit actual training, independent full CPU audit, published negative trial",
+    "latest_results_commit": "314d3312551c513912ba7c01d160cc9eb685addc",
+    "latest_actual_audit_sha256": "b8de402c326f052e1ed3e2e90a313fb8f58268c1802c66c1ff3570de40c67617",
+    "reason": "Natural-SUA five-way CE changed legacy CoT-versus-assistant discrimination. Fix non-system conditional logits while learning only system contrast. This is a hypothesis, not a demonstrated cure for tail errors."
+  },
+  "data": {
+    "old_fit": 578090,
+    "clean_natural_fit": 63403,
+    "total_instances": 641493,
+    "validation_rows": {
+      "old": 173032,
+      "c4": 61440,
+      "public": 16713
+    },
+    "clean_natural_sources": 255,
+    "public_sources": 64,
+    "clean_natural_role_support": {
+      "system": 7935,
+      "user": 12660,
+      "assistant": 42808,
+      "cot": 0,
+      "tool": 0
+    },
+    "same_existing_rows": true,
+    "source_sample_sha256": {
+      "fit": "76a6b0bfa1bcad9da6eb007b4d59b047b4ff18117ec4ea5d0ee2476d030664e2",
+      "old": "73ebd4646298ebcbd6cfd6fb3ec7e464facf4cb7dfee61bfa79321aa086fd27d",
+      "c4": "63e9913fd5e2f67e71d404bd7ebe0612a0b1da2f054d07c05ab7efe56450e1ef",
+      "natural-fit": "9a23bd829a674e59d8b74f1c5fcd066968a0ac13c7d78bf3092b66713bdf2bdf",
+      "public": "18cc0f7178e570bffd48f9b7ea7b27d7cd9831dc94cfaab131b9f1002b6e1c74"
+    },
+    "original_partitions": {
+      "fit_rows": 578090,
+      "validation_rows": 173032,
+      "removed_sparse_rows": 4160,
+      "removed_sparse_documents": 26,
+      "fit_cache_ix_sha256": "203b729f5b1f2c22b32b5c9172a54bbe054649c02b9e09c724928d11ae50b6f2",
+      "fit_sample_ix_sha256": "76a6b0bfa1bcad9da6eb007b4d59b047b4ff18117ec4ea5d0ee2476d030664e2",
+      "fit_labels_sha256": "c36b6bd68146c7b0de5373b13ed5729dfb7b7509dbcce12ebae324f22acfc5bc",
+      "validation_cache_ix_sha256": "3cdc4bac607b58d4aecee0912fb4982d8413e6d9a9f441d535272b22a1a2ba6a",
+      "validation_sample_ix_sha256": "73ebd4646298ebcbd6cfd6fb3ec7e464facf4cb7dfee61bfa79321aa086fd27d",
+      "validation_labels_sha256": "d9a25e900aef3317cf5b6c264e29a27c55122326c5f8048e0a4c9a8f41f8a893"
+    },
+    "new256_long_fit_added": false,
+    "new_test_sources_selected": false,
+    "test_data_or_probability_read": false,
+    "source_normal_system_tags": true,
+    "quarantine": "Entire contaminated natural fit source and all320 positions remain excluded."
+  },
+  "model": {
+    "base_model_sha256": "27a22fea0e784caba9be2d777ecab892db85d30536c3eac46887d31283074266",
+    "base_readout": "Original standardized512\u2192128 GELU/dropout.1\u21925 frozen readout, permanently eval, all parameters requires_gradFalse.",
+    "base_transformer": "Original gpt-oss-120b MXFP4 stays frozen and is not loaded by this readout-only trial. Its feature bank was extracted using4A40.",
+    "features": "Existing ranked8head512 F16, original fit-only512 scaler unchanged.",
+    "residual": "Linear512\u219232, GELU, Dropout.1, Linear32\u21921; final weight/bias exactly zero.",
+    "formula": "delta=4*tanh(g(x)); corrected_logits=original_base_raw_logits.clone(); corrected_logits[:,0]+=delta. No division inside tanh. All non-system logits byte-identical.",
+    "binary_loss": "BCEWithLogits(z_system+delta-logsumexp(z_non_system), formal_role==system), unweighted mean.",
+    "parameters": 16449,
+    "extra_penalty": null,
+    "portable": "NPZ contains frozen base128 weights, trainable residual32 weights, original mean/scale, complete model/source/plan metadata. Never use a saved-p-only product formula to construct main predictions.",
+    "inference_inputs": "Current standardized512 feature only. No gold role, source, profile, position, boundary or future information.",
+    "binary_vs_CE": "With frozen non-system logits, full5 CE and binary BCE have identical residual-parameter gradients (their non-system conditional loss term is constant). The intervention is preserved non-system logits plus small conditional residual, not a claim that binary loss alone distinguishes CoT/tool."
+  },
+  "matching": {
+    "arms": [
+      "new",
+      "matched"
+    ],
+    "new": "Original578090 prefix plus63403 natural cleanfit rows.",
+    "matched": "Original578090 prefix plus EXACT prior fixed63403 role-slot-matched oldfit draws.",
+    "private_numpy_seed": 20516085,
+    "draw_once": true,
+    "replacement": true,
+    "draw_sha256": "59c9bac6b0f2362cffafbe5cbf20c5c847b2d3637bb4aaf5dc1c2e75e8e8f2ef",
+    "draw_path": "/root/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/local-gptoss120b/systemness-natural-fit-preparation/trainer/matched-draw.parquet",
+    "torch_rng_consumed": false,
+    "limits": "Matches role at each extra slot and per-epoch update/sample budget; not source/style/length/semantic distribution. Report actual early-stop totals independently."
+  },
+  "training": {
+    "seed": 20261021,
+    "kind": "binary-residual",
+    "residual_hidden": 32,
+    "dropout": 0.1,
+    "bound": 4.0,
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "clip": 5.0,
+    "optimizer_parameters": "Residual parameters only; assert base has no gradients or weight changes.",
+    "batch": 4096,
+    "instances": 641493,
+    "steps": 157,
+    "last_batch": 2517,
+    "max_epochs": 45,
+    "min_epochs": 10,
+    "patience": 8,
+    "improvement": 1e-05,
+    "early_stop": "Exact original old5 mean-systemF1 helper only. Per-arm best checkpoint, GPUoldp and complete history freeze before any C4/public new predictions. Parent waits for BOTH arms frozen before zero controls/calibration.",
+    "max_updates_two_arms": 14130,
+    "max_row_visits_two_arms": 57734370,
+    "initialization": "Private fixed construction/torch seed; both full-state initial hashes identical, including frozen base. Use same fixed CUDA epoch generator.",
+    "workers": "At most2 A40 readout workers, GPUs0/1, original parent lease/supervisor/reap and lock; no simultaneous LM extraction.",
+    "retries": "Fail-closed; only explicitly logged exact-config technical retry. Never choose alternative seed, bound, architecture or penalty after seeing results."
+  },
+  "records": [
+    "new-oldmean",
+    "new-max33",
+    "matched-oldmean",
+    "matched-max33",
+    "oldhead-oldmean",
+    "oldhead-max33",
+    "ensemble-original",
+    "ensemble-max33",
+    "naturalCE-oldmean",
+    "naturalCE-max33"
+  ],
+  "controls": {
+    "inherited": "Use frozen natural-fit audited original oldhead/4seed mean p on exact same old/C4/public ordering. Bind original source/model/NPZ/sample SHA and b8de actual audit; never silently recompute or mutate reference probabilities.",
+    "naturalCE": "Previous new5way CE model204f4a9dbfb7855460ccb210ca703aca721b974a87059be9134f55c4f7b5cba5 at original .7772222222222223 and calibrated .6008080808080808 as two explicit diagnostic records. It failed current five-way/fulltail guards, so it is not a compulsory five-way floor. Report min33/F1/accuracy comparisons honestly.",
+    "ensemble": "Exact four original members20261021/22/23/24, fixed F64sum/4 castF32. Originaltau .4747979797979798. No pruning/weight search.",
+    "old_original_tau": 0.620969696969697,
+    "zero_control": "All-zero residual through exact new consumer using original frozen base/scaler, CPU4threads/highest chunk4096. Produce all3 development cohorts only after BOTH arm checkpoint/history freezes. Save full probability/argmax/original-tau decision drift versus original CPU control; keep same-path oldmean/max33 in separate controls table, not among10 records.",
+    "legacy": "Original savedGPU old-validation probabilities/tau immutable and mandatory savedGPU floors remain in addition to commonCPU controls."
+  },
+  "numerics": {
+    "CPU": {
+      "threads": 4,
+      "float32_matmul_precision": "highest",
+      "dtype": "float32",
+      "chunk": 4096
+    },
+    "parity": "Only first256 clean naturalFIT vectors: trained binary new/matched and same-path zero CPU/GPU parity <5e-4. No validation samples used for technical parity.",
+    "non_system_preservation": "Independently verify embedded base weights/scaler match original SHA/arrays and base is eval/no-grad. Full3bank predictions must preserve all four raw non-system logits bytewise, conditional raw argmax, and produce zero new non-system\u2192different-non-system winners when both complete five-way winners are non-system. Report F32 probability ties/underflow; fail any such class swap instead of claiming an unconditional ordering guarantee.",
+    "full_old_GPU_CPU": "Save each best GPUold prediction and complete CPUold replay drift<5e-4, plus argmax and old-threshold binary decisions; no tolerance retuning.",
+    "record_dtype": "Persist F32 probability arrays with exact sample_ix; actual consumer F32 threshold semantics.",
+    "five_class_decision": "Keep original p.argmax(axis=1). Globaltau is used only for system binary metrics, never as a five-class gate. Do not modify probabilities/tie-breaks with epsilon to claim preserved ordering."
+  },
+  "calibration": {
+    "groups": [
+      "old-single",
+      "old-multi",
+      "old-natural",
+      "old-long-single",
+      "old-long-full",
+      "old-long-full-tail",
+      "new-C4-long-full",
+      "new-C4-long-full-tail",
+      "public-natural-all",
+      "public-natural-oasst",
+      "public-natural-toxicchat0124"
+    ],
+    "feasible_groups": [
+      "old-single",
+      "old-multi",
+      "old-natural",
+      "old-long-single",
+      "old-long-full",
+      "new-C4-long-full",
+      "public-natural-all",
+      "public-natural-oasst",
+      "public-natural-toxicchat0124"
+    ],
+    "max_FPR": 0.05,
+    "grid": "Unique linspace(.001,.999,199), quantile of concatenated underlying old/C4/public system scores each once301points, sentinel1.000001; actualF32 comparison.",
+    "objective": "Maximize minimum33 (11group P/R/BAcc), then old5meanF1, then smaller originalF64tau. Independently check entire grid and exact counts, defined P semantics/FPR feasibility.",
+    "original_oldmean_helper_unchanged": true,
+    "validation_reused_development_only": true,
+    "formal_metric_rows": 110,
+    "formal_pool_rows": 10,
+    "zero_control_rows": 22,
+    "zero_pool_rows": 2
+  },
+  "promotion": {
+    "candidate": "new-max33",
+    "no_fallback": true,
+    "absolute_min33": 0.9,
+    "strict_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "zero-max33"
+    ],
+    "guards": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "oldhead-oldmean",
+      "ensemble-original",
+      "zero-oldmean",
+      "zero-max33"
+    ],
+    "old4_system_F1_loss": 0.02,
+    "old4_five_accuracy_loss": 0.01,
+    "old5_mean_F1_loss": 0.005,
+    "C4_full_tail_F1_nonregression": [
+      "old-long-full",
+      "old-long-full-tail",
+      "new-C4-long-full",
+      "new-C4-long-full-tail"
+    ],
+    "public3_system_F1_loss": 0.02,
+    "public3_five_accuracy_loss": 0.01,
+    "mandatory_original_savedGPU_floors": true,
+    "tolerance": 1e-12,
+    "naturalCE_diagnostic_only": true,
+    "goal_completion": false
+  },
+  "publication": {
+    "all_records_and_failures": true,
+    "training_source_protocol_and_CPU_review_before_actual": true,
+    "independent_actual_audit_only_after_exact_training_terminal0": true,
+    "root_sole_GPU_and_actual_audit_launcher": true,
+    "no_raw_banks_or_prediction_NPZ_to_git": true,
+    "portable_models_and_fullmetrics_and_audits_to_git": true,
+    "current_primary_never_implicitly_changed": true,
+    "prospective_success": "A developer gate pass permits a separately frozen closed snapshot and fresh disjoint C4/full1024/tail512+/bodybins+natural confirmation, with predetermined multi-source tomato PNG/PDF galleries. It is not goal completion."
+  },
+  "limitation": "Frozen non-system ordering can prevent new CoT\u2192assistant swaps, but CoT can still become system and five-way accuracy is not mathematically guaranteed. System tail P/R/F1 depend entirely on corrected system score and one globaltau; this design cannot promise tail repair. Botharms reuse one base and one residual seed; all current validation is developer data, with overlapping tails/public groups and shared system wording components."
+}
