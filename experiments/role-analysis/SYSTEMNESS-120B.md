@@ -295,3 +295,6 @@ System专门残差头的正式训练与复核已完成：[10条开发记录](out
 
 
 补充[开发诊断](outputs/local-gptoss120b/systemness-binary-residual/diagnostics/publication.json)：当前残差模型全部442749个F32阈值事件的最优min33也仅89.9268%，较冻结网格只增加0.0179个百分点。新C4尾部precision≥90%要求τ≥0.549163，recall≥90%要求τ≤0.540249，两集合无交；不存在任何全局阈值通过全部既有条件，当前负结果与阈值均不改。另从原raw logits重算的gold ±4 oracle上界为97.9004%，F32/F64及固定网格/全事件结论一致，说明bound4不是90%绝对硬限制，不能证明该上界可学习或可部署。这些都是已用开发数据诊断，无测试/GPU/新训练，下一步优先保持长文总权重，增加fit来源广度，再决定是否付出新头扫描代价。
+
+
+下一项[固定长文权重的来源替换设计](outputs/local-gptoss120b/systemness-long-mix-residual-preparation/root-prospective-design.json)已在真实抽样和新训练前固定：从旧132篇各保留每role128点（每半64），已有新256个fit来源各取每role66点（每半33），各84480行，总full仍168960/总641493=26.34%。role/半段每桶8448个被移除旧槽与8448新行严格配对，私有RNG一次映射，不影响Torch；原non-full409130和clean自然63403不变。matched精确复现本轮binary-new原数据，另将已审计269c模型作为固定控制。来源广度与单文密度同时变化，不能宣称纯来源因果；不增加96val或任何测试，原bound4/五类定义和全部保护条件保留。目前仅设计/源码实现阶段，尚未选择真实replacement slots或训练。互补头扫描保留为后备：[预算与方案](outputs/local-gptoss120b/systemness-method-proposals/complementary-two-head-formal-proposal.json)。
