@@ -2,7 +2,7 @@
 
 此页记录已冻结并完成独立测试的48候选轮次，以及后续验证和独立确认。语言模型权重保持冻结，使用四张 A40 提取 MXFP4 模型的激活，只训练角色读出。训练与评估正常保留 system，五类输出顺序为 system、user、cot、assistant、tool。
 
-最佳读出为 1200 篇训练原文、单消息加多轮上下文上的 MLP-64。输入拼接第 16/20/24 层归一化前残差，每层 2880 维，共 8640 维；层编号从 0 开始。阈值和模型只用验证集选择，测试前固定。
+初始48候选轮次的最佳读出为 1200 篇训练原文、单消息加多轮上下文上的 MLP-64。输入拼接第 16/20/24 层归一化前残差，每层 2880 维，共 8640 维；层编号从 0 开始。阈值和模型只用验证集选择，测试前固定。后续完整长文读出及新增464篇确认记录在下半页。
 
 独立测试单元为 400 篇新 C4 原文和 144 段已有生成对话。C4 单消息与构造多轮共用同一批 400 篇原文；64 篇长正文是其子集。新 system 措辞是同 144 段对话的配对变体，含 32 种未参与训练或验证的提示，不能重复计为新增独立对话。
 
@@ -55,7 +55,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 另一组试验固定原残差特征、1200 篇训练原文与 MLP-64，比较 ERM、按角色及采样位置均衡的 CE、Focal Loss、Group DRO。后面三种目标在本轮配置下都未通过晋级标准，继续保留原选定探针。[完整报告](outputs/local-gptoss120b/systemness-objective-pilot/report.txt)、[验证指标](outputs/local-gptoss120b/systemness-objective-pilot/validation-metrics.csv)、[试验入口](systemness_objectives.py)。方法依据为 [Group DRO](https://arxiv.org/abs/1911.08731) 与 [Focal Loss](https://arxiv.org/abs/1708.02002)，本实验没有复现论文中的其他任务。
 
-后续仍可尝试：在现有同正文多角色数据上增加显式配对损失、增加独立长正文和困难负例、细分误差后补充真实 system 提示与上下文。新增模型应先仅用验证集确定，再增加至少 400 篇与既有 fit/validation/test 按正文、完整原文和 URL 去重的新原文作确认。旧测试指标保留为已报告基准，不重新包装为独立确认。训练组别、真实角色和标签不作为推断输入。
+后续配对损失及完整长正文试验见下文；尚可增加独立长正文和困难负例、细分误差后补充真实 system 提示与上下文。新增模型应先仅用验证集确定，再增加至少 400 篇与既有 fit/validation/test 按正文、完整原文和 URL 去重的新原文作确认。旧测试指标保留为已报告基准，不重新包装为独立确认。训练组别、真实角色和标签不作为推断输入。
 
 
 模型配置核对发现：当前 attention 特征的 16/20/24 层均为 128-token 窗口的局部注意力层，而相邻的 17/21/25 层是全局注意力层。200 篇原文试验中，长正文超过 512 token 后的验证 system recall 两种特征均为 34.02%，整体 F1 提高尚未解决远距离位置。已据此完成相邻全局注意力层对照；输出投影前的头级特征（4096 维，而投影后为 2880 维）仍待检验。残差仍能传递更早的角色信息，局部窗口不能单独解释全部误差。见[实际配置核对](outputs/local-gptoss120b/systemness-component-pilot/architecture-audit.json)和[验证位置分解](outputs/local-gptoss120b/systemness-component-pilot/validation-system-by-position.csv)。
@@ -77,7 +77,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 本轮初始化在删除已声明的两个可重建特征缓存后，因即时可用空间检查失败而退出，当时尚未进入新长文提取。原文、行表、已发布模型和分组完整保留：[失败记录](outputs/local-gptoss120b/systemness-long-full/initialization-failure.json)。[显式恢复入口](systemness_recover_local_bank.py)已正常退出，完整566482行原特征重建完成；pilot SHA与完整前缀SHA均与旧值逐bit一致：[恢复审计](outputs/local-gptoss120b/systemness-long-full/cache-recovery.json)、[pilot阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/pilot.json)、[剩余阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/remaining.json)。新增188800位置也已提取完成，全755282行通过有限值、非空行和文件SHA核验：[提取完成记录](outputs/local-gptoss120b/systemness-long-full/extraction-complete.json)。
 
-后续候选方法仍是待验证假设。优先考虑同正文同位置、不同正式角色之间的配对排序损失，在训练中压低内容语义的干扰，推理仍只读取单个token特征；以及在o_proj之前选择或稀疏组合注意力头。前者可参考[监督对比学习](https://arxiv.org/abs/2004.11362)的监督结构，后者可参考[注意力头探针](https://arxiv.org/abs/2306.03341)的分析方法，这些论文并不证明本任务会有提升。另可增加命令语气与正式角色相反的困难样本、更多自然对话system模板，以及轮数和工具循环不同的正常native输入。所有system标签正常保留，错误挖掘只使用fit数据，方法和阈值仍在验证集决定。
+同正文同位置、不同正式角色之间的配对排序损失已经按下述三候选完成；另一个待验证方向是在o_proj之前选择或稀疏组合注意力头。前者可参考[监督对比学习](https://arxiv.org/abs/2004.11362)的监督结构，后者可参考[注意力头探针](https://arxiv.org/abs/2306.03341)的分析方法，这些论文并不证明本任务会有提升。另可增加命令语气与正式角色相反的困难样本、更多自然对话system模板，以及轮数和工具循环不同的正常native输入。所有system标签正常保留，错误挖掘只使用fit数据，方法和阈值仍在验证集决定。
 
 配对排序[三候选](systemness_paired_probes.py)已全部完成。132篇fit正文形成33792组五角色同位置配对，每步增加128组辅助前向，仅计算排序损失；原CE仍为每轮578090实例和142次更新。lambda=0、0.1、0.5共用初始化、CE顺序和隔离的辅助dropout RNG。CPU检查已验证lambda0与纯CE梯度一致、排序梯度方向及fit配对索引；实际lambda0的全部173032行验证概率与原dense-MLP64逐项完全一致。lambda0.1及0.5均未晋级，五组平均F1相对控制分别下降0.02和0.39个百分点：[完整负结果](outputs/local-gptoss120b/systemness-paired-pilot/selection.json)。辅助梯度只作用完整长文，此试验不能单独区分配对结构与普通长文重加权的影响。
 
@@ -97,4 +97,13 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 与同一新数据上的已发布attention控制相比，完整长文system F1提高6.44个百分点，2000次原文配对bootstrap的95%区间为[4.56,8.25]；尾部提高8.42点，区间[5.52,11.32]。单消息F1差为−0.06点，区间[−0.45,0.33]，不能称为单消息进一步改善。除构造多轮外，其余组仍未达到system P/R/BAcc各90%的工作目标，继续保留失败事实。[完整确认报告](outputs/local-gptoss120b/systemness-long-full/confirmation/report.txt)、[全部指标](outputs/local-gptoss120b/systemness-long-full/confirmation/metrics.csv)、[配对区间](outputs/local-gptoss120b/systemness-long-full/confirmation/paired-comparisons.csv)、[12个固定样本的五面板三模型图集](outputs/local-gptoss120b/systemness-long-full/confirmation/plots/gallery-index.md)。图集另含真正1024正文的分位置召回曲线，未做平滑。
 
-原144段自然对话及32种措辞配对变体另做[冻结模型复核](systemness_natural_recheck.py)，不计作新增独立测试。该入口保留324798个旧语义位置，补齐972个没有语义归属但形式上属于user的内容位置；formal指标包含新增位置，语义投影仍只使用原位置，同时单列旧分母指标。该复核完成后单独记录。
+原144段自然对话及32种措辞配对变体的[冻结模型复核](systemness_natural_recheck.py)已完成，不计作新增独立测试，也不用于重新选模型或阈值。720个旧缓存输入含334464个输入token；保留324798个旧语义位置，补齐972个没有语义归属但形式上属于user的内容位置，共325770个评分/投影位置。formal指标包含新增位置，语义投影和图仍只使用原位置，同时单列旧分母指标。
+
+| 最终dense-MLP128 | System precision | System recall | System F1 | 五角色准确率 | CoT recall |
+|---|---:|---:|---:|---:|---:|
+| 正常native标签 | 92.39% | 100.00% | 96.05% | 76.34% | 49.61% |
+| 未见system措辞，正常native标签 | 97.73% | 99.91% | 98.81% | 76.42% | 48.05% |
+
+全部放入user标签时，完整formal分母分别为64437和66618，user准确率仅16.77%和17.55%，system误报率为1.60%和2.80%。这说明systemness较好不能代表整体结构角色稳健；正常native对话中CoT/tool混淆仍明显。原无标签变体只报告语义投影，不定义正式角色准确率。配对bootstrap以8个原system模板或32个未见模板为重采样单位，各2000次，不把token当独立样本。旧语义子集的all-user准确率单列为16.44%/17.29%，不可与完整formal分母混用。
+
+[完整复核报告](outputs/local-gptoss120b/systemness-natural-recheck/report.txt)、[全部指标](outputs/local-gptoss120b/systemness-natural-recheck/metrics.csv)、[旧分母对照](outputs/local-gptoss120b/systemness-natural-recheck/legacy-all-user-metrics.csv)、[模板配对区间](outputs/local-gptoss120b/systemness-natural-recheck/paired-comparisons.csv)、[12段固定对话×三种格式的36张三模型图](outputs/local-gptoss120b/systemness-natural-recheck/plots/gallery-index.md)。
