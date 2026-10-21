@@ -248,3 +248,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 长正文扩展的四卡提取与匹配训练现均已正常完成。[实际bank独审](outputs/local-gptoss120b/systemness-long-augmentation/extraction-audit/actual-bank-audit.json)独立重算全部440批的样本/特征指纹：389120×512 F16全部finite、无零行，实际MXFP4/4×A40及禁写hook证据一致，同256保存向量的分类器CPU/GPU最大差1.42e-14。新模型18轮、3996次更新（best10轮/2220步）；matched13轮、2886次更新（best5轮/1110步），所以每轮预算相同、实际总步数不同。
 
 [六条正式开发记录](outputs/local-gptoss120b/systemness-long-augmentation-probes/report.txt)和[实际结果独审](outputs/local-gptoss120b/systemness-long-augmentation-probes/actual-audit/actual-development-audit.json)全部完成，48行组指标＋6行仅描述pool复算最大差5.56e-16。预定new-maximin没有晋级：8组P/R/BAcc最小值85.31%，低于matched的90.06%与旧head重新校准的89.78%；原natural system F1由98.07%降至92.07%，原full尾部F1由93.37%降至92.41%。新96篇开发长文尾部F1虽由89.48%升至91.04%，不能抵消这些退步。[完整负结果与预算发布记录](outputs/local-gptoss120b/systemness-long-augmentation-probes/results-publication.json)。原正式模型保留，未声明新测试模型快照、未选择新测试ID或运行条件确认，长期system精确率/召回率目标仍未达到。下一步优先检查fit分布与长文训练占比，并另行冻结多随机种子等权集成实验。
+
+
+下一项[有界多seed等权集成设计](outputs/local-gptoss120b/systemness-multiseed-ensemble-preparation/root-prospective-design.json)已在新候选训练前固定：沿用原578090行fit和原scaler，新增20261022/23/24三个seed，与原20261021模型共同等权平均；不搜索权重、不挑seed，六条记录中仅ensemble-maximin可晋级。每seed142步/轮、最多45轮，三新增模型最多19170步。四模型以同CPU portable路径复算两套开发预测，同时保留旧saved-GPU概率/阈值并报告全部数值与决策漂移；收益须同时通过两控制，不能归因于漂移。旧natural开发组含真实CoT标注，不能与仅S/U/A的公开自然队列混淆。当前为前瞻设计，尚未训练新seed或读取其概率。
