@@ -208,3 +208,8 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 下一轮[长正文扩展设计](outputs/local-gptoss120b/systemness-long-augmentation-preparation/prospective-experiment-design.json)已在新候选正文读取前声明。固定扫描未使用的4111–12302行，选256个fit及96个validation真1024-token来源；不足即停，不扩大窗口。新数据与旧578090行组合训练MLP128，另设增加等量旧132篇长文重复采样的匹配控制；两者每轮905770行、222次更新，使用相同旧fit-only scaler及初始权重，实际早停步数另报。六条模型/阈值记录完整保留，只有预定new-maximin候选可晋级，须同时胜过matched与纯重新校准控制并通过逐组退步限制。新增96篇属于开发验证，之后仍须全新来源确认。当前只处于实现/CPU检查阶段，未完成新来源准备、特征提取或训练，不能计为准确率提升。
+
+
+扩展长正文的正式CPU准备已正常退出：固定8192行中752条达到1024-token最低长度，精确正文/前缀去重后751条，按冻结规则取352个新来源并独立划分fit256/validation96。历史2828个已知C4来源已恢复完整/192/1024前缀指纹，并排除原249两份库存；原249缺完整URL/行号的限制仍保留。[准备完成](outputs/local-gptoss120b/systemness-long-augmentation/data-complete.json)、[扫描](outputs/local-gptoss120b/systemness-long-augmentation/scan-audit.json)、[排除审计](outputs/local-gptoss120b/systemness-long-augmentation/exclusion-audit.json)。共1760个native输入、1814032输入tokens，独立解析1802240个完整内容位置后取389120个特征位置，五类严格等量、system标签正常保留。新数据尚未证明准确率收益。
+
+[独立新bank提取入口](systemness_long_augmentation_extract.py)及[元数据提取计划](outputs/local-gptoss120b/systemness-long-augmentation/extraction-plan.json)在GPU启动前固定；[CPU合成及独立附审](outputs/local-gptoss120b/systemness-long-augmentation-preparation/extractor/preparation.json)验证完整行覆盖、native位置、所选头顺序、禁写hook和断点恢复，不代替真实四卡运行。新bank为389120×512 F16（380MiB），旧bank保留；仍使用四张A40上冻结的原MXFP4底座。
