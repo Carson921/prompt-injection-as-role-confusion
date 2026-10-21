@@ -1,6 +1,6 @@
 **GPT-OSS-120B MXFP4 systemness 实验入口**
 
-此页记录已冻结并完成独立测试的 48 候选轮次。语言模型权重保持冻结，使用四张 A40 提取 MXFP4 模型的激活，只训练角色读出。训练与评估正常保留 system，五类输出顺序为 system、user、cot、assistant、tool。
+此页记录已冻结并完成独立测试的48候选轮次，以及后续验证和独立确认。语言模型权重保持冻结，使用四张 A40 提取 MXFP4 模型的激活，只训练角色读出。训练与评估正常保留 system，五类输出顺序为 system、user、cot、assistant、tool。
 
 最佳读出为 1200 篇训练原文、单消息加多轮上下文上的 MLP-64。输入拼接第 16/20/24 层归一化前残差，每层 2880 维，共 8640 维；层编号从 0 开始。阈值和模型只用验证集选择，测试前固定。
 
@@ -44,7 +44,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 后续试验单独保存，原始 72 个单层探针与旧 tomato 图仍保留。
 
 
-**后续改进试验：验证结果**
+**后续改进试验与独立确认**
 
 注意力/MLP 分支试验对四种特征使用相同的 200 篇训练原文及完整原验证集。直接注意力输出在单消息上的 system F1 为 75.47%，相同规模残差对照为 66.27%；长正文为 70.71% 对 64.50%。注意力特征达到试验前固定的晋级标准，已扩大到全部 1200 篇训练原文。这里是验证收益，不能当作新增独立测试收益。
 
@@ -61,7 +61,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 模型配置核对发现：当前 attention 特征的 16/20/24 层均为 128-token 窗口的局部注意力层，而相邻的 17/21/25 层是全局注意力层。200 篇原文试验中，长正文超过 512 token 后的验证 system recall 两种特征均为 34.02%，整体 F1 提高尚未解决远距离位置。已据此完成相邻全局注意力层对照；输出投影前的头级特征（4096 维，而投影后为 2880 维）仍待检验。残差仍能传递更早的角色信息，局部窗口不能单独解释全部误差。见[实际配置核对](outputs/local-gptoss120b/systemness-component-pilot/architecture-audit.json)和[验证位置分解](outputs/local-gptoss120b/systemness-component-pilot/validation-system-by-position.csv)。
 
 
-1200 篇原文的局部 attention 轮次已完成四个读出的训练与验证。固定模型为 MLP-64，全局 system 阈值为 0.5554444444444444；相同验证集的平均 system F1 从原模型的 85.44% 提高至 89.00%。本项仍只有验证证据，独立确认尚未执行，后续将与完整长文候选共同进入464篇确认。[报告](outputs/local-gptoss120b/systemness-attention/report.txt)、[冻结选择](outputs/local-gptoss120b/systemness-attention/selection.json)、[完整指标](outputs/local-gptoss120b/systemness-attention/validation-metrics.csv)、[原400篇确认入口](systemness_attention_confirm.py)、[新464篇确认入口](systemness_long_confirm.py)。全局注意力匹配对照入口为[systemness_global_attention.py](systemness_global_attention.py)。
+1200 篇原文的局部 attention 轮次已完成四个读出的训练与验证。固定模型为 MLP-64，全局 system 阈值为 0.5554444444444444；相同验证集的平均 system F1 从原模型的 85.44% 提高至 89.00%。该验证收益现已与完整长文候选共同完成464篇独立确认，见下文。[验证报告](outputs/local-gptoss120b/systemness-attention/report.txt)、[冻结选择](outputs/local-gptoss120b/systemness-attention/selection.json)、[完整验证指标](outputs/local-gptoss120b/systemness-attention/validation-metrics.csv)、[原400篇确认入口](systemness_attention_confirm.py)、[464篇确认入口](systemness_long_confirm.py)。全局注意力匹配对照入口为[systemness_global_attention.py](systemness_global_attention.py)。
 全量局部 attention 的自然对话验证五分类准确率由 80.77% 降至 78.66%，CoT recall 由 59.52% 变为 54.17%；systemness 的改善不能等同于全部角色改善。
 
 
@@ -73,7 +73,7 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 [读出入口](systemness_long_probes.py)的五候选均已完成：原数据MLP-64、完整长文MLP-64/128和线性读出，以及原数据重采样MLP-64。主对照重采样原413290行至每轮578090实例，与完整长文候选均为142次更新；原数据未重采样读出保留作次对照。它们共用原fit标准化参数。独立早停仍可能产生不同最佳更新数，且此控制没有匹配长文权重，不能称为严格的最终总步数或全部训练分布匹配。[选定MLP-128](outputs/local-gptoss120b/systemness-long-full/selection.json)相对重采样控制的完整长文system F1为67.21%对58.37%，尾部60.41%对48.42%；同结构MLP-64也分别达到67.33%和60.64%。本轮五组平均F1含新增完整长文组，不能直接与旧四组均值比较。单消息和完整长文仍未达到工作目标。
 
-已提前声明后续独立确认：400篇新一般原文，加64篇另行去重、真实达到1024-token的完整长原文，共464篇独立来源；原400篇中的64个up-to1024长变体仍是配对子集。[确认协议](outputs/local-gptoss120b/systemness-long-full/confirmation-plan.json)。模型、阈值先用验证集冻结，再准备和执行该确认。当前这组独立确认尚未运行。
+独立确认已按提前声明的协议完成：400篇新一般原文，加64篇另行去重、真实达到1024-token的完整长原文，共464篇独立来源；原400篇中的64个up-to1024长变体仍是配对子集。[确认协议](outputs/local-gptoss120b/systemness-long-full/confirmation-plan.json)。模型、阈值先用验证集冻结，再准备和执行确认，全部962889个五角色内容位置参与指标；工具调用动作不属于这五类评分对象。
 
 本轮初始化在删除已声明的两个可重建特征缓存后，因即时可用空间检查失败而退出，当时尚未进入新长文提取。原文、行表、已发布模型和分组完整保留：[失败记录](outputs/local-gptoss120b/systemness-long-full/initialization-failure.json)。[显式恢复入口](systemness_recover_local_bank.py)已正常退出，完整566482行原特征重建完成；pilot SHA与完整前缀SHA均与旧值逐bit一致：[恢复审计](outputs/local-gptoss120b/systemness-long-full/cache-recovery.json)、[pilot阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/pilot.json)、[剩余阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/remaining.json)。新增188800位置也已提取完成，全755282行通过有限值、非空行和文件SHA核验：[提取完成记录](outputs/local-gptoss120b/systemness-long-full/extraction-complete.json)。
 
@@ -83,4 +83,18 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 在任何新确认准备前，464篇协议升级到v2，并[声明最终选择规则](outputs/local-gptoss120b/systemness-final-readout/plan.json)。[最终选择入口](systemness_final_select.py)先独立重算两试验所选模型的同一验证行概率指标；配对候选须先通过自身匹配控制的晋级，再超过长文候选平均F1，完整长文和尾部F1均不下降，原四组各自system F1回退最多2个百分点，并满足accuracy/FPR限制。否则保留长文候选。确认仍比较原残差、已发布attention与最终读出三个冻结模型；确认准备锁出现后禁止重选。
 
-最终选择已正常完成，保留[dense-MLP128](outputs/local-gptoss120b/systemness-final-readout/selection.json)，system阈值0.6965757575757576；[选择报告](outputs/local-gptoss120b/systemness-final-readout/report.txt)保留所有跨试验门控和未采用配对候选的理由。这里仍是开发验证结果，独立确认另行记录。
+最终选择已正常完成，保留[dense-MLP128](outputs/local-gptoss120b/systemness-final-readout/selection.json)，system阈值0.6965757575757576；[选择报告](outputs/local-gptoss120b/systemness-final-readout/report.txt)保留所有跨试验门控和未采用配对候选的理由。[八候选验证汇总](outputs/local-gptoss120b/systemness-final-readout/validation-report.txt)区分开发验证与以下独立确认。
+
+464篇独立确认的最终读出指标：
+
+| 组别 | 独立原文 | System precision | System recall | System F1 | Balanced accuracy |
+|---|---:|---:|---:|---:|---:|
+| 单消息 | 400 | 87.48% | 79.25% | 83.16% | 88.21% |
+| 构造多轮 | 同400 | 99.16% | 97.56% | 98.36% | 98.72% |
+| up-to1024长变体 | 原400中的64 | 80.32% | 71.80% | 75.82% | 83.70% |
+| 真正1024正文 | 另64 | 73.72% | 59.53% | 65.87% | 77.11% |
+| 正文512–1023位置 | 同另64 | 67.62% | 54.64% | 60.45% | 74.05% |
+
+与同一新数据上的已发布attention控制相比，完整长文system F1提高6.44个百分点，2000次原文配对bootstrap的95%区间为[4.56,8.25]；尾部提高8.42点，区间[5.52,11.32]。单消息F1差为−0.06点，区间[−0.45,0.33]，不能称为单消息进一步改善。除构造多轮外，其余组仍未达到system P/R/BAcc各90%的工作目标，继续保留失败事实。[完整确认报告](outputs/local-gptoss120b/systemness-long-full/confirmation/report.txt)、[全部指标](outputs/local-gptoss120b/systemness-long-full/confirmation/metrics.csv)、[配对区间](outputs/local-gptoss120b/systemness-long-full/confirmation/paired-comparisons.csv)、[12个固定样本的五面板三模型图集](outputs/local-gptoss120b/systemness-long-full/confirmation/plots/gallery-index.md)。图集另含真正1024正文的分位置召回曲线，未做平滑。
+
+原144段自然对话及32种措辞配对变体另做[冻结模型复核](systemness_natural_recheck.py)，不计作新增独立测试。该入口保留324798个旧语义位置，补齐972个没有语义归属但形式上属于user的内容位置；formal指标包含新增位置，语义投影仍只使用原位置，同时单列旧分母指标。该复核完成后单独记录。
