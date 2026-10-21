@@ -234,3 +234,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 条件自然确认的[新数据入口](systemness_aug_natural_data.py)及[27项合成与10项独立CPU审查](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/natural-builder/preparation.json)已冻结：后续固定64个OASST、64个ToxicChat全新来源及32种新正常system措辞，排除历史448个自然来源和全部200个旧请求。先只读用户字段选定并冻结全部ID、措辞、分配与图库，再材料化选中回复；质量失败保留且不替换，all/clean与共享措辞、重复回复依赖组件均保留。全部S/U/A正文评分，CoT/tool无观测记N/A；回复来自公开原记录，非120B生成、也非新system措辞条件下生成。当前仅源码/合成审查，尚未选择真实新ID或声明真实模型快照。
+
+
+新确认共用的[概率提取入口](systemness_aug_confirmation_infer.py)及[20项CPU检查与9项独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/shared-infer/preparation.json)已冻结：四张A40原MXFP4共享一次底座前向，仅临时采集8个指定头的512维F16向量，同一向量供3个缓存CPU分类器使用；旧head两阈值共享一份概率/argmax。仅持久化3份F32概率，绑定样本与缓存指纹后续跑，全部自然来源失败时保留零观测且不启动GPU。真正推理仍须实际禁写hook逐bit一致和同向量CPU/GPU分类器误差检查；本次合成审查未运行真实推理。
