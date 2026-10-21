@@ -254,3 +254,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 补充[仅fit特征分布诊断](outputs/local-gptoss120b/systemness-long-augmentation-preparation/fit-distribution/readout.json)：对每角色/正文前后半固定抽样，匹配旧132篇与新256篇真实1024/相同256点网格后，新旧标准化RMS比0.978–1.039，未见明显尺度爆炸；layer31/head61的前半范数p99局部最高增约17%，仅为描述，不能当作训练退步的因果证据。精确旧fit组成只有single192000、multi189290、long-full168960、long-single27840，natural行=0；本轮新/matched均把full长文CE行占比从29.23%升到54.83%。因此更直接的数据改进是限制long占比，并实际纳入已准备但尚未提取/训练的255个干净公开自然fit来源；不能声称给不存在的natural训练行重新加权。
+
+
+[已完成开发结果的独立解读与自然fit最小提案](outputs/local-gptoss120b/systemness-long-augmentation-preparation/interpretation/interpretation-and-natural-proposal.json)进一步核对：255个干净fit来源包含63403个S/U/A内容token（7935/12660/42808），64个自然验证来源16713个，污染fit整篇320位置禁止使用。若仅在旧578090行上加入干净自然fit，每轮641493行/157次更新/末批2517，新增占9.8837%；与等量旧fit采样对照，避免同时大幅增加long权重。这仍是未实现/未运行的方法提案；后续若执行，matched应显式匹配额外S/U/A标签计数。
