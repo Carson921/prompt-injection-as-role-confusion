@@ -269,3 +269,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 自然dev的[独立特征提取入口](systemness_natural_dev_extract.py)、[元数据计划](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-plan.json)和[19项CPU/34项独审](outputs/local-gptoss120b/systemness-natural-fit-preparation/extractor/preparation.json)已先于GPU固定。既有320dev中仅保留255cleanfit+64val=319输入/80116内容位置，整篇污染fit的320位置排除；原4e12 sample_ix及原prompt/cache映射保留，所有native S/U/A正文均采集。新bank约78.24MiB，旧bank不删；仅固定首256个cleanFIT已保存F16向量计算原head CPU/GPU数值一致性，绝不在提取阶段计算public64val分类器概率。尚未完成正式GPU提取；完整prefix若缺最终完成标记会拒绝自动恢复，需人工核验。
+
+
+自然dev四卡原MXFP4提取已正常退出：[完成记录](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-complete.json)和[实际独立bank审计](outputs/local-gptoss120b/systemness-natural-dev-features/actual-audit/actual-bank-audit.json)。319输入的80116×512 F16向量全部写入、finite且无零行，80批字节及原dev行/角色/位置映射独立重算一致，污染fit整篇320位置未进入bank；原4张A40及禁写hook逐bit一致证据绑定。仅固定256cleanFIT向量的分类器CPU/GPU最大概率差5.36e-7，未计算public64验证分类器概率、未跑新分类器训练或任何测试。该独审不重新运行LM/GPU；原始dev native标签已有来源缓存审计，新增审计核对提取对应关系。[提取发布清单](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-publication.json)。
