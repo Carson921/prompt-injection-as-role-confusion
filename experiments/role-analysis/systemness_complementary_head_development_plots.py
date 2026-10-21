@@ -24,7 +24,7 @@ require,read,digest,array_sha,probability,counts=old.require,old.read,old.digest
 
 def gate(audit_path):
     require(all(v is not None for v in [TRAINER_SHA,PROTOCOL_SHA,APPROVED_AUDITOR_SHA,APPROVED_ACTUAL_AUDIT_SHA]),'Root must pin auditor and completed actual audit before rendering.')
-    names={'systemness_complementary_head_readout.py','long_data_complementary_head_readout_results_audit.py'}
+    names={'systemness_complementary_head_readout.py','confirmation_review_complementary_readout_results_audit.py'}
     for p in Path('/proc').iterdir():
         if not p.name.isdigit() or int(p.name)==os.getpid():continue
         try:args=(p/'cmdline').read_bytes().split(b'\0')
