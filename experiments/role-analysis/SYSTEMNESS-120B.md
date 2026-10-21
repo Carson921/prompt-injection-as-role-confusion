@@ -130,3 +130,11 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 在本轮头验证开始前，下一组联合读出的[条件协议](outputs/local-gptoss120b/systemness-head-scan/readout-preparation/conditional-protocol.json)及源码也已固定：以原755282行提取选定8头的512维F16特征，约0.720GiB；在相同578090个densefit位置上比较8头概率平均LDA、联合线性、MLP64及MLP128，验证仍为173032行。训练与验证保持正常system标签。联合模型使用fit-only新scaler，LDA保留原始头向量；分类器、缩放与旧模型的特征均有变化，不称为纯因果消融。晋级须平均system F1严格提高、完整长文及尾部F1不降，并通过逐组FPR、原四组F1及五分类准确率限制；否则只保留诊断结果。该协议发布时尚未启动新的特征提取或读出训练，当前模型不变。[特征入口](systemness_head_extract.py)、[四候选入口](systemness_head_probes.py)。
 
 当前已按[正式提取计划](outputs/local-gptoss120b/systemness-head-features/plan.json)启动四卡特征提取；联合读出的训练和验证尚未完成，没有新的独立确认收益可报告。
+
+后续[条件确认协议](outputs/local-gptoss120b/systemness-head-confirmation-preparation/conditional-protocol.json)及[独立入口](systemness_head_confirm.py)在新读出训练开始前固定，只有完成验证并通过晋级约束的候选才能准备新测试。先冻结残差、已发布attention、dense128和所选head四模型及阈值，再从相同固定C4快照另取400篇一般原文和64篇真实1024正文，排除包括最近464篇确认在内的全部已知来源。报告四模型逐组及完整尾部指标、2000次来源配对区间、12个固定来源的5×4角色概率图及分位置曲线。34项CPU检查和独立审查已通过，包括完整合成尾部、图集和缓存/来源/模型签名篡改拒绝；尚未准备或推理这批新测试。
+
+新增自然对话的数据来源也已完成CPU准备和独立去重审查：[来源与模板提案](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/source-proposal.json)、[可重放入口](systemness_natural_sources.py)。固定OpenAssistant/oasst1与ToxicChat的官方revision及快照SHA，从2296个合格来源中按预定SHA顺序提出448个根对话，训练/验证/测试分别256/64/128，每组两来源均衡。排除全部200个旧请求，包括16次失败，以及旧OASST树和与旧ToxicChat文本对应的108个原生ID；全树用户文本、原文/规范化/标签清理后的正文和192-token前缀、URL均参与去重。ToxicChat的0124/1123训练用户文本和ID完全相同，更换该配置不能视为新样本。旧加载器未固定revision，不能追认其版本。
+
+本次另固定80条正常system正文，训练/验证/测试为32/16/32条，与旧44条及跨组的精确、规范化、前缀匹配均无碰撞。测试32条措辞各配4个来源，正类区间须按32个措辞刺激聚类，不能把128段对话或token当作独立system刺激。措辞共享部分指令主题，不声称语义独立。原始公开快照只存忽略缓存；发布来源ID、指纹、措辞、分配和审计。此阶段**没有生成新对话或评估新测试**，生成路径、预算和失败规则仍需单独固定；OASST最多保留两条真实用户轮，ToxicChat仅一条，真实analysis/final须分开记录，不伪造截断后的final。[来源排除证据](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/source-exclusion-proof.json)、[模板审计](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/template-audit.json)、[生成提案及边界](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/generation-proposal.json)。
+
+除了正在进行的混合头读出，后续优先考虑冻结dense128、仅学习有界的system logit修正，融合原有短文/多轮能力和全局头的长文信号；其次增加真实长system指令和只在fit内挖掘的角色冲突困难样本。这些是待检验方向，并无已确认的提升。若使用前序token的特征训练序列读出，应作为额外上下文模型单列，与当前逐token读出分别报告。角色可解码性也不等同于模型遵守指令层级的行为；[内部表征研究](https://arxiv.org/abs/2608.28648)在其他设置中同样区分读出和干预效果，不能把其指标当作本120B探针的预期收益。
