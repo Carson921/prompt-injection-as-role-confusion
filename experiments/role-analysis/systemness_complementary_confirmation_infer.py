@@ -21,7 +21,7 @@ import tempfile
 import time
 import numpy as np
 import pandas as pd
-import systemness_complementary_confirm_snapshot as closed
+import systemness_complementary_guard_confirm_snapshot as closed
 
 HERE=Path(__file__).resolve().parent
 BATCH,INTERVAL,DIMENSIONS,PAD_ID=4,16,640,0

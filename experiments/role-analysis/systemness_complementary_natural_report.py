@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 import systemness_data as data
-import systemness_complementary_confirm_snapshot as closed
+import systemness_complementary_guard_confirm_snapshot as closed
 
 
 RECORDS=list(closed.RECORD_TO_MODEL)
@@ -212,7 +212,7 @@ def plots(folder,rows,physical,thresholds,ledger,gallery,metrics):
                     mask=group.role.to_numpy()==role
                     ax.scatter(x[mask],physical[name][indices[mask],role_ix],s=3,color=color,alpha=.7,rasterized=True)
                 if role_ix==0:
-                    for record,linestyle in [('new-max33','--')] if name=='new' else [('matched-max33','--')] if name=='matched' else [('oldhead-max33','--'),('oldhead-original',':')]:
+                    for record,linestyle in [('new-guard-max33','--')] if name=='new' else [('matched-max33','--')] if name=='matched' else [('oldhead-max33','--'),('oldhead-original',':')]:
                         ax.axhline(thresholds[record],ls=linestyle,lw=.8,color='#374151',label=record)
                 for boundary in group.groupby('message_ix').token_ix.min():ax.axvline(boundary,lw=.5,color='#d1d5db',zorder=0)
                 if group.empty:ax.text(.5,.5,'Quality failed\nNo invented observations',ha='center',va='center',transform=ax.transAxes,fontsize=8)
@@ -341,7 +341,7 @@ def synthetic_data(empty=False):
     for name in PHYSICAL:
         raw=rng.normal(size=(len(rows),5));raw-=raw.max(1,keepdims=True) if len(rows) else 0
         p=np.exp(raw);physical[name]=(p/p.sum(1,keepdims=True)).astype(np.float32)
-    thresholds={'new-max33':.35,'matched-max33':.4,'oldhead-max33':.3,'oldhead-original':.620969696969697}
+    thresholds={'new-guard-max33':.35,'matched-max33':.4,'oldhead-max33':.3,'oldhead-original':.620969696969697}
     metadata=dict(prepared_prompts=sum(r['status']=='prepared' for r in ledger),gallery_source_uids=gallery,
         system_family_counts=dict(fixed=32,all_prepared=0 if empty else 32,clean_prepared=0 if empty else 32),
         dependency_components=0 if empty else 31,clean_dependency_components=0 if empty else 31)

@@ -24,7 +24,7 @@ import systemness_long_data as native
 import systemness_natural_sources as sources
 import systemness_natural_transcripts as pure
 import systemness_natural_test as previous
-import systemness_complementary_confirm_snapshot as closed
+import systemness_complementary_guard_confirm_snapshot as closed
 
 
 OUT = data.runtime.OUT / 'systemness-complementary-natural-confirmation'
@@ -43,7 +43,7 @@ FILES = ['inputs.parquet','rows.parquet','token-ids.json']
 SOURCE_ARTIFACTS = ['natural-source-keys.json','system-templates.json','template-assignments.json',
     'gallery-index.json','source-selection-audit.json']
 AUDITS = ['source-read-audit.json','test-ledger.json','duplicate-audit.json','coverage.json']
-DEPENDENCIES = ['systemness_complementary_natural_data.py','systemness_complementary_confirm_snapshot.py',
+DEPENDENCIES = ['systemness_complementary_natural_data.py','systemness_complementary_guard_confirm_snapshot.py',
     'systemness_natural_sources.py','systemness_natural_transcripts.py','systemness_natural_test.py',
     'systemness_long_data.py','systemness_data.py','systemness_challenges.py','run_local_gptoss120b.py']
 PREPARED_ROLE_INPUTS={

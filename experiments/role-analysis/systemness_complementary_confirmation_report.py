@@ -21,15 +21,15 @@ import pandas as pd
 
 import systemness_data as data
 import systemness_probes as probes
-import systemness_complementary_confirm_snapshot as closed
+import systemness_complementary_guard_confirm_snapshot as closed
 
 
 OUT = data.runtime.OUT / 'systemness-complementary-confirmation/report'
 PHYSICAL = ['new', 'matched', 'old-head']
-RECORDS = ['new-max33', 'matched-max33', 'oldhead-max33', 'oldhead-original']
-RECORD_TO_PHYSICAL = {'new-max33': 'new', 'matched-max33': 'matched',
+RECORDS = ['new-guard-max33', 'matched-max33', 'oldhead-max33', 'oldhead-original']
+RECORD_TO_PHYSICAL = {'new-guard-max33': 'new', 'matched-max33': 'matched',
     'oldhead-max33': 'old-head', 'oldhead-original': 'old-head'}
-PRIMARY = 'new-max33'
+PRIMARY = 'new-guard-max33'
 PROFILES = ['single', 'multi', 'long-single', 'long-full', 'long-full-tail']
 BINS = [(0, 31), (32, 63), (64, 127), (128, 255), (256, 511), (512, 1023)]
 BIN_NAMES = [f'long-full-bin-{left:04d}-{right:04d}' for left, right in BINS]
@@ -42,7 +42,7 @@ EXPECTED_DOCUMENTS = dict(single=400, multi=400, **{'long-single': 64, 'long-ful
     **{name: 128 for name in BIN_NAMES})
 COLORS = dict(system='#90a1b9', user='#00a6f4', cot='#fd9a00', assistant='#00d492', tool='#a855f7')
 DEPENDENCIES = ['systemness_complementary_confirmation_report.py', 'systemness_complementary_confirmation_infer.py',
-    'systemness_complementary_confirmation_data.py', 'systemness_complementary_confirm_snapshot.py', 'systemness_data.py', 'systemness_probes.py']
+    'systemness_complementary_confirmation_data.py', 'systemness_complementary_guard_confirm_snapshot.py', 'systemness_data.py', 'systemness_probes.py']
 LIMITATION = ('528 independent pinned C4 source documents:400 general and128 disjoint exact1024 bodies. '
     'The first64 general sources have paired up-to1024 variants; single/multi/long-single, tail and bins '
     'are repeated views, never additional independent sources. Constructed native role inputs are not natural '
@@ -462,7 +462,7 @@ def synthetic_context(folder):
     snapshot = dict(snapshot_sha256='synthetic-snapshot', record_to_physical=RECORD_TO_PHYSICAL,
         physical_model_sha256={name: hashlib.sha256(name.encode()).hexdigest() for name in PHYSICAL},
         runtime_files_sha256={str(Path(__file__).resolve()): digest(__file__)})
-    thresholds = {'new-max33': .6, 'matched-max33': .55, 'oldhead-max33': .5, 'oldhead-original': .35}
+    thresholds = {'new-guard-max33': .6, 'matched-max33': .55, 'oldhead-max33': .5, 'oldhead-original': .35}
     metadata = dict(frozen=snapshot, coverage=dict(all_content_tokens_scored=True, independent_native_labels_match=True))
     ctx = SimpleNamespace(module=SimpleNamespace(OUT=builder_out), rows=rows, inputs=inputs, metadata=metadata,
         snapshot=snapshot, thresholds=thresholds, signature=dict(synthetic_only=True), out=inference_out)
@@ -495,7 +495,7 @@ def _synthetic_preflight():
         and all(counts[name]['source_documents'] == EXPECTED_DOCUMENTS[name] for name in GROUPS), 'Synthetic summary/document coverage differs.')
     checks['20main_24bins_7552_paired_document_rows'] = True
     values = {row['record']: row for row in main if row['profile'] == 'long-full-tail'}
-    require(values['new-max33']['system_recall'] > values['matched-max33']['system_recall']
+    require(values['new-guard-max33']['system_recall'] > values['matched-max33']['system_recall']
         and values['oldhead-original']['system_recall'] > values['oldhead-max33']['system_recall'],
         'Synthetic failures do not distinguish independent models and shared-old thresholds.')
     checks['different_tail_failures_and_same_old_probabilities_two_thresholds'] = True

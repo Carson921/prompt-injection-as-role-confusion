@@ -21,7 +21,7 @@ import pandas as pd
 import systemness_data as data
 import systemness_long_data as native
 import systemness_long_augmentation_data as pure
-import systemness_complementary_confirm_snapshot as closed
+import systemness_complementary_guard_confirm_snapshot as closed
 import systemness_natural_sources as natural_sources
 
 
@@ -44,7 +44,7 @@ MANIFESTS = dict(pure.MANIFESTS, **{
     'systemness-long-augmentation/document-keys.json':
         '7fe8812b69b4992fa8fc8fbc833c39956724737e642bc01330fb3fbf3f36f7cf'})
 ORIGINAL = dict(pure.ORIGINAL)
-DEPENDENCIES = ['systemness_complementary_confirmation_data.py', 'systemness_complementary_confirm_snapshot.py',
+DEPENDENCIES = ['systemness_complementary_confirmation_data.py', 'systemness_complementary_guard_confirm_snapshot.py',
     'systemness_long_augmentation_data.py', 'systemness_long_data.py',
     'systemness_data.py', 'systemness_natural_sources.py', 'run_local_gptoss120b.py']
 NATURAL_HISTORY = {
