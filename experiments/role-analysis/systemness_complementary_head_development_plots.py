@@ -12,10 +12,10 @@ HERE=Path(__file__).resolve().parent;BASE=HERE/'outputs/local-gptoss120b'
 TRAIN=BASE/'systemness-complementary-head-readout';OUT=BASE/'systemness-complementary-head-readout-development-plots'
 PLAN=old.PLAN;PLAN_SHA=old.PLAN_SHA
 HELPER_SHA='54798b2477de55e59b7f989ee210358057833a103822f817bbc7b6602fbba350'
-TRAINER_SHA=None
-PROTOCOL_SHA=None
+TRAINER_SHA='e74e40889ba49ab05815f0faac68c2a522ccc06627b09ff14379929bc53dbdf6'
+PROTOCOL_SHA='10c92c0af904b96d42e1ff8c9cbc12f7efb0371da08fdc3962aebd7b8d0d6f54'
 DESIGN=BASE/'systemness-complementary-head-readout-preparation/root-prospective-design.json';DESIGN_SHA='f3dae68aae0003daf7382c925978313f984911cf428401d1bdd1eaa3b161c314'
-APPROVED_AUDITOR_SHA=None;APPROVED_ACTUAL_AUDIT_SHA=None
+APPROVED_AUDITOR_SHA='0219af8dbf0dc6587f8ba4d4bc1e4f163ae9e745a2b6c4d99a24560a88c8ae85';APPROVED_ACTUAL_AUDIT_SHA='7bac44572d8ea37fc4cae87d447061228496a218eadaa92583a4a96bb3c4989c'
 MODELS=['oldhead','priorBinary','priorLongMix','extra2-new','duplicate-control'];RECORDS=['oldhead-max33','priorBinary-max33','priorLongMix-max33','new-max33','matched-max33']
 ROLES=list(old.ROLES);COLORS=list(old.COLORS);CACHE=BASE/'systemness-expansion/cache'
 PATHS={'oldhead':(CACHE/'natural-fit-probes','seed-20261021'),'priorBinary':(CACHE/'binary-residual','new'),'priorLongMix':(CACHE/'long-mix-residual','new'),'extra2-new':(CACHE/'complementary-head-readout','new'),'duplicate-control':(CACHE/'complementary-head-readout','matched')}
