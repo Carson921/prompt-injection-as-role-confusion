@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "stage": "prospective_conditional_640_readout_before_extra_bank_or_new_training",
+  "objective": "Determine whether exactly2 fit-selected complementary heads improve systemness while preserving the existing non-system classifier and all development/fresh-confirmation gates.",
+  "prerequisite": "Root actual independent headscan audit must pass and added128F16 bank extraction must be complete and independently audited before declare/train. Those future certificates are unknown, not bypassable.",
+  "frozen_head_scan": {
+    "source_sha256": "70db2015b90a496dc465c63631911da81d641614fcf0b1d48b04313a078ce156",
+    "plan_sha256": "0db7b1a351196b5894389fe405f0ca1c93a37d218873b9a0ad119dc603575f70",
+    "complete_sha256": "dd538fb5d3cc20d6652ca2fd214bbadd7477d124978b50809561673e34de4b95",
+    "head_selection_sha256": "77563f6dfacab0c7bf42a72090e64496bd4029d2143b2c9f21f13472f5762551",
+    "original_heads": [
+      458,
+      462,
+      2045,
+      460,
+      459,
+      2047,
+      456,
+      997
+    ],
+    "added_heads": [
+      247,
+      2248
+    ],
+    "proxy_is_not_readout_accuracy": true
+  },
+  "data": {
+    "old_fit": 578090,
+    "clean_natural_fit": 63403,
+    "total_instances": 641493,
+    "steps_per_epoch": 157,
+    "last_batch": 2517,
+    "original_partitions": {
+      "fit_rows": 578090,
+      "validation_rows": 173032,
+      "removed_sparse_rows": 4160,
+      "removed_sparse_documents": 26,
+      "fit_cache_ix_sha256": "203b729f5b1f2c22b32b5c9172a54bbe054649c02b9e09c724928d11ae50b6f2",
+      "fit_sample_ix_sha256": "76a6b0bfa1bcad9da6eb007b4d59b047b4ff18117ec4ea5d0ee2476d030664e2",
+      "fit_labels_sha256": "c36b6bd68146c7b0de5373b13ed5729dfb7b7509dbcce12ebae324f22acfc5bc",
+      "validation_cache_ix_sha256": "3cdc4bac607b58d4aecee0912fb4982d8413e6d9a9f441d535272b22a1a2ba6a",
+      "validation_sample_ix_sha256": "73ebd4646298ebcbd6cfd6fb3ec7e464facf4cb7dfee61bfa79321aa086fd27d",
+      "validation_labels_sha256": "d9a25e900aef3317cf5b6c264e29a27c55122326c5f8048e0a4c9a8f41f8a893"
+    },
+    "sample_ix_sha256": {
+      "fit": "76a6b0bfa1bcad9da6eb007b4d59b047b4ff18117ec4ea5d0ee2476d030664e2",
+      "old": "73ebd4646298ebcbd6cfd6fb3ec7e464facf4cb7dfee61bfa79321aa086fd27d",
+      "c4": "63e9913fd5e2f67e71d404bd7ebe0612a0b1da2f054d07c05ab7efe56450e1ef",
+      "natural-fit": "9a23bd829a674e59d8b74f1c5fcd066968a0ac13c7d78bf3092b66713bdf2bdf",
+      "public": "18cc0f7178e570bffd48f9b7ea7b27d7cd9831dc94cfaab131b9f1002b6e1c74"
+    },
+    "fit_order": "Exact original578090 prefix +actual63403 clean-natural rows, unchanged labels and order in both arms. No old-SUA draws, no long source replacement, no new256C4fit.",
+    "validation_rows": {
+      "old": 173032,
+      "c4": 61440,
+      "public": 16713
+    },
+    "added_bank_shape": [
+      896838,
+      128
+    ],
+    "lookup": "Exact(parent_bank,parent_cache_ix) =>added_cache_ix; preserve original sample_ix, never assume newC4 parent offsets are zero.",
+    "normal_system_tags": true,
+    "quarantine": "Entire previously excluded natural source remains excluded."
+  },
+  "scaler": {
+    "original512": "Exact frozen original mean/scale arrays, never refit.",
+    "new128": "Population mean/std only on the same578090 original densefit rows; hp.fit_scaler pure F64 parallel-Welford in chunk4096, scale floor1e-6. Never use natural additions or validation.",
+    "duplicate128": "Exact repeats of original rank0/1 mean/scale and feature columns0:128; no new fit.",
+    "forward": "Standardize each arm640, then pass first512 .contiguous() to frozen base and all640 .contiguous() to correction."
+  },
+  "model": {
+    "base_model_sha256": "27a22fea0e784caba9be2d777ecab892db85d30536c3eac46887d31283074266",
+    "base": "Original512->128 GELU->5 portable, permanently eval/no-grad.",
+    "correction": "640->32 GELU/Dropout.1->1; final weight/bias zero,16449 becomes20545 trainable parameters.",
+    "formula": "Only raw z_system +=4*tanh(g640(x)); other4rawlogits bitexact.",
+    "loss": "Unweighted mean BCEWithLogits(z_system+delta-logsumexp(z_non_system), formal role==system). No other penalty.",
+    "inference": "Only current640 features; no source/position/gold/boundary/future input.",
+    "new": "Original8 distinct heads +selected added2.",
+    "matched": "Original8 +exact repeated rank0/1 as128 trailing features: identical640 architecture/parameter count, only8 informative heads.",
+    "causal_limit": "Duplicating coordinates matches parameter count but changes conditioning and effective regularization; not a perfect causal isolation of information."
+  },
+  "training": {
+    "seed": 20261021,
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "clip": 5.0,
+    "batch": 4096,
+    "max_epochs": 45,
+    "min_epochs": 10,
+    "patience": 8,
+    "improvement": 1e-05,
+    "early_stop": "Only original old5 mean system F1; freeze best/model/history/GPUold before C4/public p.",
+    "same_label_permutation_each_epoch": true,
+    "realized_update_counts_may_differ": true,
+    "readout_workers": "At most2 A40 workers only after all LM extraction/audit completes.",
+    "CPU": {
+      "threads": 4,
+      "float32_matmul_precision": "highest",
+      "chunk": 4096,
+      "dtype": "float32"
+    },
+    "same_initial_neural_weight_state": true,
+    "arm_scalers": "Different trailing128 scaler arrays follow the fixed new-versus-duplicate rule; only base512 scaler and full neural weight initialization match."
+  },
+  "records": [
+    "new-oldmean",
+    "new-max33",
+    "matched-oldmean",
+    "matched-max33",
+    "oldhead-oldmean",
+    "oldhead-max33",
+    "ensemble-original",
+    "ensemble-max33",
+    "naturalCE-oldmean",
+    "naturalCE-max33",
+    "priorBinary-oldmean",
+    "priorBinary-max33",
+    "priorLongMix-oldmean",
+    "priorLongMix-max33"
+  ],
+  "zero_records": [
+    "zero-oldmean",
+    "zero-max33"
+  ],
+  "CSV": {
+    "main": 168,
+    "zero": 24,
+    "total": 192
+  },
+  "controls": {
+    "inherit_actual_audit_sha256": "6dadc3a34ff9ea2c5c3415930051876165b529f3983d77eed757456259a1e58e",
+    "priorBinary_sha256": "269c9d7e7b04248de8ea03a44a2db5484d6c793d3cfd3557d5fc39702b982779",
+    "priorLongMix_sha256": "649c16b33f5d7ed51c5a291e001232a0cf3c83506347962b7923004c392a9a8c",
+    "priorLongMix_thresholds": {
+      "new-oldmean": 0.9435555555555556,
+      "new-max33": 0.7923434343434343
+    },
+    "naturalCE_and_priorLongMix": "Diagnostic only; both failed existing gates. Report their tail gains/other-role regression honestly; no new hard floor from failed candidate."
+  },
+  "promotion": {
+    "candidate": "new-max33",
+    "no_fallback": true,
+    "absolute_min33": 0.9,
+    "strict_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "zero-max33",
+      "priorBinary-max33"
+    ],
+    "guards": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "oldhead-oldmean",
+      "ensemble-original",
+      "zero-oldmean",
+      "zero-max33",
+      "priorBinary-max33"
+    ],
+    "old4_system_F1_loss": 0.02,
+    "old4_five_accuracy_loss": 0.01,
+    "old5_mean_F1_loss": 0.005,
+    "C4_full_tail_F1_nonregression": [
+      "old-long-full",
+      "old-long-full-tail",
+      "new-C4-long-full",
+      "new-C4-long-full-tail"
+    ],
+    "public3_system_F1_loss": 0.02,
+    "public3_five_accuracy_loss": 0.01,
+    "mandatory_original_savedGPU_floors": true,
+    "tolerance": 1e-12,
+    "naturalCE_diagnostic_only": true,
+    "goal_completion": false,
+    "extra": "Retain same original savedGPU floors, absolute min33>=.90,FPR9<=.05,old4/old5/public/full-tail guards. Full3cohort rawother4 bitidentity and observed non-system->differentnon-system p.argmax0 hard gates; fiveclass uses normal p.argmax. One globaltau binary only."
+  },
+  "zero": "One same640 path zero-correction candidate with actual new scaler+added features; compare original oldhead p and calibrations. Both arm best freezes before zero controls. Zero is not trained or eligible.",
+  "fresh_confirmation": "Passing development still requires new disjoint C4 and natural confirmation with predetermined multiple-source plots. Do not reuse old independent tests for tuning or claim goal complete.",
+  "boundary": {
+    "extra_bank_declared_or_loaded": false,
+    "new640_training_run": false,
+    "new640_probabilities_read": false,
+    "new_test_sources_selected": false,
+    "base120B_MXFP4_frozen": true
+  }
+}
