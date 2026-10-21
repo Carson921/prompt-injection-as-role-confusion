@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "stage": "root_frozen_natural_fit_design_before_candidate_results",
+  "experiment": "clean-public-natural-fit-versus-role-slot-matched-oldfit-control",
+  "boundary": {
+    "temporary_design_only": false,
+    "new_training_source_written": false,
+    "actual_probability_or_test_results_read": false,
+    "formal_declaration_training_or_GPU_run": false,
+    "frozen_sources_or_primary_changed": false
+  },
+  "data": {
+    "old_fit_rows": 578090,
+    "old_fit": "Exact original head_probes.partitions578090 order, sparse-long replacement, ranked8x64 F16 features and frozen original512 scaler.",
+    "natural_fit": {
+      "clean_sources": 255,
+      "rows": 63403,
+      "role_tokens": {
+        "system": 7935,
+        "user": 12660,
+        "assistant": 42808
+      },
+      "truth": "Native S/U/A only; no synthesized replies or model-based source filtering. Freeze supplied clean source keys/cache/role ordering."
+    },
+    "public_validation": {
+      "sources": 64,
+      "rows": 16713,
+      "role_tokens": {
+        "system": 2032,
+        "user": 3596,
+        "assistant": 11085
+      },
+      "status": "Public development validation, never independent test or early-stop data."
+    },
+    "old_validation_rows": 173032,
+    "new_C4_validation": {
+      "sources": 96,
+      "rows": 61440,
+      "status": "Already reused development/calibration data."
+    },
+    "new256_C4_fit_rows_added": 0,
+    "total_unique_validation_rows": 251185,
+    "cohort_distinction": "Legacy old-natural has actual CoT truth and tool0/N/A. New public fit/validation is S/U/A-only; keep them distinct.",
+    "source_partition_checks": "Fit/public64 source IDs, URL/full text/prefix hashes and duplicate/reference components must be frozen and collision-audited. Do not split a duplicate or wording/reference component across fit/public validation.",
+    "no_test_or_new_source_selection": true
+  },
+  "arms": {
+    "names": [
+      "new",
+      "matched"
+    ],
+    "per_epoch_rows": 641493,
+    "new": "Original578090 fit prefix + all63403 clean natural fit rows once per epoch in frozen canonical row order.",
+    "matched": "Original578090 fit prefix +63403 draws from original fit only; each extra slot has exactly the natural slot formal-role label.",
+    "matched_sampling": {
+      "draw_once": true,
+      "private_NumPy_RandomState_seed": 20516085,
+      "algorithm": "In fixed system,user,assistant order, draw with replacement from original578090 fit cache_ix having that role, with size7935/12660/42808; scatter into ascending extra slots of the identical natural role. Freeze complete manifest.",
+      "manifest_fields": [
+        "extra_slot",
+        "natural_fit_sample_ix",
+        "natural_source_uid",
+        "role",
+        "matched_old_cache_ix",
+        "matched_old_sample_ix"
+      ],
+      "no_validation_rows": true,
+      "torch_rng_consumed": false,
+      "no_epoch_redraw": true
+    },
+    "matching_checks": "Extra role array identical at every slot; shared old prefix/sample_ix, epoch permutation and per-step labels identical across arms; no natural val or C4val enters either fit.",
+    "matching_limit": "This matches instance/update amounts and formal-role slots, not body positions, document coverage, wording families or semantic/style distribution; not a causal proof of natural supervision alone."
+  },
+  "training": {
+    "candidates": 2,
+    "initialization_seed": 20261021,
+    "from_scratch": true,
+    "same_initial_weight_SHA_required": true,
+    "architecture": "Original512->128 GELU/dropout.1->5 MLP128, original fit-only scaler unchanged.",
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.001,
+    "clip": 5.0,
+    "loss": "Five-class unweighted mean CE",
+    "batch_size": 4096,
+    "steps_per_epoch": 157,
+    "last_batch_instances": 2517,
+    "max_epochs": 45,
+    "min_epochs": 10,
+    "patience": 8,
+    "improvement": 1e-05,
+    "early_stop": "Exact unchanged original old5 mean-systemF1 helper/grid only. Same original torch seed and private epoch-order generator for both arms.",
+    "freeze_before_new_validation": "Freeze best modelSHA, best GPU old-validation pSHA and complete history/best/actual step evidence before any new-C4 or public64 prediction by that model.",
+    "budget": {
+      "maximum_updates_per_arm": 7065,
+      "maximum_additional_updates": 14130,
+      "maximum_training_row_visits": 57734370,
+      "maximum_concurrent_GPU_workers": 2
+    },
+    "no_weight_or_seed_search": true,
+    "technical_retry": "Exact same arm/seed/config from declared initialization with failure audit only; no result-dependent replacement."
+  },
+  "controls_and_records": {
+    "fixed_total": 8,
+    "records": [
+      "new-oldmean",
+      "new-max33",
+      "matched-oldmean",
+      "matched-max33",
+      "oldhead-oldmean",
+      "oldhead-max33",
+      "ensemble-original",
+      "ensemble-max33"
+    ],
+    "only_promotable": "new-max33",
+    "no_singleton_selection": true,
+    "oldhead-oldmean": "Inherited oldhead at its exact original threshold .620969696969697; original savedGPU p/old-only calibration preserved as drift reference. Apply this fixed threshold to common-CPU predictions for record comparisons.",
+    "new/matched-oldmean": "Old5-only unchanged helper, evaluated at each frozen best model; diagnostic only.",
+    "ensemble-original": "All4 inherited seed20261021/22/23/24 models at exact frozen ensemble threshold .4747979797979798; diagnostic only.",
+    "max33_records": "Independent same-rule max33 calibration for new/matched/oldhead/ensemble; only new-max33 is eligible.",
+    "inherited_ensemble": "Retain all4 frozen models from the explicitly negative multiseed trial, rather than selecting a singleton. It remains a required strong diagnostic/control despite nonpromotion.",
+    "weights_and_arithmetic": "Fixed original seed order20261021,22,23,24; F32 member p castF64, accumulate/4, cast final meanF32; no normalization, pruning or reweighting."
+  },
+  "numerical_controls": {
+    "path": "Every model on the same CPU portable F32 path, same rawF16 inputs/embedded original scaler, chunk4096,4threads/highest matmul; no GPU-vs-CPU backend mixing in primary comparisons.",
+    "oldhead_drift": "Keep original savedGPU old173032 p/fileSHA/sample_ix and original tau unchanged; report full CPU drift max/mean/quantiles, changed argmax and original-tau binary decisions by old group and total. Compare newC4 to its existing audited oldhead reference too.",
+    "ensemble_drift": "Bind frozen ensemble/member probability and model SHAs; compare recomputed old/newC4 CPU ensemble to its previous saved CPU mean at frozen tau. No prior public64 predictions are assumed.",
+    "portable_gate": "Same-vector CPU/GPU probability parity for all required readouts <5e-4; complete oldhead/reference or inherited ensemble/reference drift>=5e-4 is technical failure, not a tolerance to retune.",
+    "attribution": "Original head savedGPU/threshold and inherited ensemble originaltau remain explicit diagnostics; new improvement must survive common-path calibrated controls and inherited fixedtau guard, rather than numerical drift."
+  },
+  "calibration": {
+    "groups": [
+      "old-single",
+      "old-multi",
+      "old-natural",
+      "old-long-single",
+      "old-long-full",
+      "old-long-full-tail",
+      "new-C4-long-full",
+      "new-C4-long-full-tail",
+      "public-natural-all",
+      "public-natural-oasst",
+      "public-natural-toxicchat0124"
+    ],
+    "group_count": 11,
+    "statistics": [
+      "system_precision",
+      "system_recall",
+      "system_balanced_accuracy"
+    ],
+    "objective": "Maximum minimum of33 actual-consumer statistics.",
+    "FPR_feasible_groups": [
+      "old-single",
+      "old-multi",
+      "old-natural",
+      "old-long-single",
+      "old-long-full",
+      "new-C4-long-full",
+      "public-natural-all",
+      "public-natural-oasst",
+      "public-natural-toxicchat0124"
+    ],
+    "maximum_FPR": 0.05,
+    "tails": "Old/new C4 tails are objective groups and repeated subsets, not extra FPR-feasibility groups.",
+    "grid": "unique(linspace(.001,.999,199),quantile(concatenated old173032/newC4-61440/public16713 F32 p_system,linspace(0,1,301)),1.000001). Concatenate each underlying row once, not duplicate public all/OA/TC or tails.",
+    "semantics": "NumPy2 F32 p>=Python-float tau consumer; effectiveF32 grid and independent direct proof for every33 P/R/BAcc values, F1/FPR, feasibility and argmax. Undefined precision infeasible.",
+    "tie_break": [
+      "higher min33",
+      "higher old5 mean systemF1",
+      "smaller original float64 tau"
+    ],
+    "pooled_metrics": "Old/new/public descriptive values separate; no pooled objective or fabricated independent source counts."
+  },
+  "promotion": {
+    "candidate": "new-max33",
+    "no_fallback": true,
+    "absolute_min33_floor": 0.9,
+    "strict_min33_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33"
+    ],
+    "strict_gain_over_each": 1e-12,
+    "guard_controls": [
+      "matched-max33",
+      "oldhead-max33",
+      "ensemble-max33",
+      "oldhead-oldmean",
+      "ensemble-original"
+    ],
+    "guards_against_each": {
+      "original_four": [
+        "old-single",
+        "old-multi",
+        "old-natural",
+        "old-long-single"
+      ],
+      "maximum_system_F1_loss_each": 0.02,
+      "maximum_five_class_accuracy_loss_each": 0.01,
+      "maximum_old5_mean_F1_loss": 0.005,
+      "C4_full_tail_system_F1_nonregression": [
+        "old-long-full",
+        "old-long-full-tail",
+        "new-C4-long-full",
+        "new-C4-long-full-tail"
+      ],
+      "public_protection": {
+        "groups": [
+          "public-natural-all",
+          "public-natural-oasst",
+          "public-natural-toxicchat0124"
+        ],
+        "maximum_system_F1_loss_each": 0.02,
+        "maximum_five_class_accuracy_loss_each": 0.01,
+        "report": "Publish each floor delta/pass/reason, S/U/A argmax recalls and CoT/tool N/A, including failures."
+      },
+      "FPR_groups": [
+        "old-single",
+        "old-multi",
+        "old-natural",
+        "old-long-single",
+        "old-long-full",
+        "new-C4-long-full",
+        "public-natural-all",
+        "public-natural-oasst",
+        "public-natural-toxicchat0124"
+      ],
+      "maximum_FPR": 0.05,
+      "comparison_tolerance": 1e-12
+    },
+    "legacy_savedGPU_protection": "Mandatory additional old4 F1/accuracy, old5meanF1 and old-C4 full/tail floors against unchanged savedGPU oldhead p at original tau, with audited new-C4 reference where needed. Public64 reference is explicitly commonCPU old weights, since no historical public64 p is assumed. These are protected diagnostics/guards; do not treat CPU drift as learned gain.",
+    "negative": "Retain all8 records and rejection reasons. No matched, singleton, alternate objective/threshold, extra seed or weight fallback. Current primary unchanged."
+  },
+  "freeze_and_evidence": {
+    "before_training_or_candidate_validation": "Root approval then immutable source/protocol/design, ordered source/row/sample/role manifests, matched draw, original and natural feature-completion/dependency SHAs, old/newC4/public split and component proofs, oldscaler, headrank, initSHA, all4 inherited model/completion/audit/member probability SHAs and numerical environment.",
+    "per_candidate": "History/model/GPUoldp freeze precedes new validation; candidate completion binds old/newC4/public CPU pSHAs, exact sample identities, scaler/init/source/plan SHA, best_steps/actual_steps and portable proof.",
+    "probability_and_selection_freeze": "Complete both arms and all inherited controls before selecting/calibrating; retain8 records with p/sample/model/member/threshold/full-grid-proof SHAs. Independent actual development auditor required.",
+    "source_SHA_fields": "Record actual builder/extractor/data/source-key/cache/rows/features/scanner/runtime/source/dependency SHA values at formal declaration. This draft does not fabricate unknown hashes or inspect actual p.",
+    "feature_extraction_parity_boundary": "Extractor parity may compute only fixed256 cleanFIT saved-vector CPU/GPU outputs, never public64val outputs. New/matched best/history/GPUoldp must freeze before any new public64/C4 predictions by that model. Root freezes this design before extractor actual GPU launch."
+  },
+  "report_and_goal": {
+    "report": "All8 records x11 groups P/R/F1/BAcc/FPR/five-class accuracy/confusion/truth-supported macroF1/NLL/AUROC/AP/all-role recalls, absolute90% flags, every guard delta and negative; developer-only source/wording/component counts.",
+    "dependence": "Public all/OA/TC overlap; tails and repeated old views overlap. Token counts and model seeds are not independent source observations; do not pool them into a generalization claim.",
+    "goal_completion": false,
+    "developer_90_is_not_completion": true,
+    "required_for_goal": "A qualifying readout still needs a newly frozen prospective model/threshold and wholly fresh disjoint C4 plus fresh natural independent confirmation, all long-body/tail/position90% checks and multiple fixed tomato plots.",
+    "no_old_test_reuse_or_new_test_preparation": true
+  },
+  "limitations": [
+    "One shared initialization seed for new/matched; inherited ensemble was already selected/reviewed in developer work.",
+    "Same per-epoch/maximum updates do not imply equal realized total updates under independent early stopping.",
+    "Role-slot matching does not remove content/style/position/weighting differences.",
+    "Old5/new96/public64 are development data; repeated threshold/model development can overfit them.",
+    "Fresh public assistant replies are not120B outputs and were not generated under the assigned system wording; this probes native serialization labels, not instruction-following behavior."
+  ],
+  "root_execution_decision": {
+    "scope": "Continue authorized role-readout experiments without new human approval.",
+    "previous_goal_turn": "progress: completed and published long-source training, matched controls, seed ensemble and independent actual audits.",
+    "previous_completed_head": "426a754d2f3e75d88fbf06857dd2db5ef6699bb1",
+    "negative_seed_actual_audit_sha256": "bd2da3997146332a7a2351a2dcf1a0d6636de926ac9943025c4a2472e33394e1",
+    "negative_long_actual_audit_sha256": "5f8569e6878e92721a9395e05b0a81b2cf395ee03a32b71d5b01a68a2c4b8074",
+    "raw_proposal_sha256": "446d6c293ca1b93475041f5bedb4ed88fe441509ce38336b2e9924985fad2fde",
+    "new_training_or_candidate_validation_predictions_started": false,
+    "new_test_ids_selected": false,
+    "old_tests_not_reused": true
+  }
+}

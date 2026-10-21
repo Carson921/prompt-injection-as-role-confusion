@@ -263,3 +263,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 多seed试验现已正常完成：[六条开发记录](outputs/local-gptoss120b/systemness-multiseed-ensemble/report.txt)、[实际独立结果审计](outputs/local-gptoss120b/systemness-multiseed-ensemble/actual-audit/actual-development-audit.json)与[预算/漂移/负结果发布清单](outputs/local-gptoss120b/systemness-multiseed-ensemble/results-publication.json)。新增三个seed实际14/17/11轮、1988/2414/1562次更新，best分别6/9/3轮；固定四模型等权均值的min24为90.16%，较旧CPU-maximin的89.78%提高0.384个百分点，old5平均system F1为97.10%。但原full尾部F1较旧CPU-maximin下降0.135个百分点，违反预先固定的不退步条件，故仍未晋级，不挑singleton回退。六记录/54行与全部网格、模型/概率/历史、均值和CPU漂移独审最大指标差5.56e-16。没有读取独立测试来选择模型、没有声明本轮新测试快照，原正式模型保留；新增自然训练覆盖与受控long比例仍是优先后续方向。
+
+
+[自然fit配对实验的前瞻设计](outputs/local-gptoss120b/systemness-natural-fit-preparation/root-prospective-design.json)已在新分类器训练及public64预测前固定。旧578090行加255clean来源63403行，共641493实例/157步/末批2517；matched额外槽逐位置匹配S/U/A标签，以私有RNG一次抽取旧fit，不使用验证。两arm原初始化/scaler相同，仍仅旧5组早停，best/history先冻结再评估newC4/public64。报告8条模型/阈值记录，继承的四seed均值虽未晋级也作为强控制保留；11组33项P/R/BAcc最小值须≥90%，且new-max33严格胜matched、旧head及继承ensemble同目标控制并通过所有防退步约束。该开发门槛不能替代全新C4/自然来源、多图及长文位置独立确认；目前仍没有本轮新训练结果。
