@@ -225,3 +225,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 匹配长文试验的[独立实际结果审计器](outputs/local-gptoss120b/systemness-long-augmentation-preparation/result-auditor/audit.py)已在真实训练概率产生前固定，[CPU合成及独立附审](outputs/local-gptoss120b/systemness-long-augmentation-preparation/result-auditor/preparation.json)通过。其实际入口须先核对训练终态和源码/模型/概率/抽样顺序链，再独立复算六条记录×八组的48行指标及六行仅描述的pool、全部阈值网格与保护条件；当前仅是审计准备，不能替代尚未完成的训练结果。
+
+
+未来测试的[静态闭合模型快照入口](systemness_aug_confirm_snapshot.py)及[CPU/独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/closed-snapshot-helper/preparation.json)已冻结。它在开发正式完成且实际独审通过、新模型按预定规则晋级后才允许真实声明；逐项绑定已审计模型路径/SHA、四条阈值、固定依赖和checkpoint元数据，不通过扫描后来新增的测试目录重建旧输入。原始特征bank记录已审计指纹，确认时不重新宣称其逐字核验；当前未声明任何真实测试模型快照。
