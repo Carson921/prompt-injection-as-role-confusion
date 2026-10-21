@@ -251,3 +251,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 下一项[有界多seed等权集成设计](outputs/local-gptoss120b/systemness-multiseed-ensemble-preparation/root-prospective-design.json)已在新候选训练前固定：沿用原578090行fit和原scaler，新增20261022/23/24三个seed，与原20261021模型共同等权平均；不搜索权重、不挑seed，六条记录中仅ensemble-maximin可晋级。每seed142步/轮、最多45轮，三新增模型最多19170步。四模型以同CPU portable路径复算两套开发预测，同时保留旧saved-GPU概率/阈值并报告全部数值与决策漂移；收益须同时通过两控制，不能归因于漂移。旧natural开发组含真实CoT标注，不能与仅S/U/A的公开自然队列混淆。当前为前瞻设计，尚未训练新seed或读取其概率。
+
+
+补充[仅fit特征分布诊断](outputs/local-gptoss120b/systemness-long-augmentation-preparation/fit-distribution/readout.json)：对每角色/正文前后半固定抽样，匹配旧132篇与新256篇真实1024/相同256点网格后，新旧标准化RMS比0.978–1.039，未见明显尺度爆炸；layer31/head61的前半范数p99局部最高增约17%，仅为描述，不能当作训练退步的因果证据。精确旧fit组成只有single192000、multi189290、long-full168960、long-single27840，natural行=0；本轮新/matched均把full长文CE行占比从29.23%升到54.83%。因此更直接的数据改进是限制long占比，并实际纳入已准备但尚未提取/训练的255个干净公开自然fit来源；不能声称给不存在的natural训练行重新加权。
