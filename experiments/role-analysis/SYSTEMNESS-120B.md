@@ -240,3 +240,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 新C4确认的[统计与图库入口](systemness_aug_confirmation_report.py)及[完整合成运行和独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/c4-report/preparation.json)已冻结。正式推理终态与报告源码指纹通过后才读概率；报告4条记录×5主组及6位置分箱，以来源配对2000次bootstrap生成264个区间、396个比较。固定17对PNG/PDF包括12个多轮来源、4个system正文0–1023位置图和四记录位置曲线；三实际模型并排，旧head两阈值均在system行，保留失败与未达目标。现有图片均为/tmp合成验收图，尚无新测试实际结果。
+
+
+新自然确认的[统计/图库入口](systemness_aug_natural_report.py)及[16项合成与13项独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/natural-report/preparation.json)也已冻结。4记录×all/clean×全部/OA/TC共24行指标，原始依赖组件先形成再按来源/clean筛选，2000次配对bootstrap给出216个区间、324个比较；零观测和少于2组件保留N/A，旧head两阈值的五类结果、AUROC/AP严格相同。图库固定6OA＋6TC和汇总共13对，失败来源明确占位不替换。以上仍为合成审查，未产生本轮新自然测试成绩。
