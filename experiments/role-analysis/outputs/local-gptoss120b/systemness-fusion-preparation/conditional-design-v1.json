@@ -1,0 +1,91 @@
+{
+  "stage": "conditional_design_before_new_source_implementation",
+  "created_utc": "2026-10-21T01:23:09.267085+00:00",
+  "supersedes": "Implementation prerequisite sentence in diagnostic-scope.json is satisfied by this fixed design; executable source and full source/data/model SHA search-plan freeze remain required before formal training.",
+  "source_implemented": false,
+  "head_readout_training_started": false,
+  "head_fusion_training_started": false,
+  "tests_read": false,
+  "primary_changed": false,
+  "gate": "head_probes.verified_completion; selection.promoted must be strictly False; no head-confirmation OUT. Repeat during resume and completion. Do not create formal fusion OUT or read feature bank before gate.",
+  "frozen_upstream_sources_sha256": {
+    "systemness_head_probes.py": "fb2e72f60257ce8b556d80147d9bbb889dd38465a97cb521bb79e139bb7f12dc",
+    "systemness_head_extract.py": "545365205955ba3677e2ace0d64333ae78e39227cefbac0c0cd968dc6610f653",
+    "systemness_head_scan.py": "6095e77d8ecf9cc22fb51169bdd126ec1f69efe9d3b59575b9e4b9094ba29ecd",
+    "systemness_long_probes.py": "9de351ba517c509f0cdf234bf1a79cfbadc2ae843d37d62e7cdb99c09e037f95",
+    "systemness_probes.py": "59bacbf87d72a86af216e51ea12c20717da90b09f05a66d4b7d4b79668560c15"
+  },
+  "candidates": {
+    "delta-linear": {
+      "hidden": 0,
+      "dropout": 0.0
+    },
+    "delta-mlp32": {
+      "hidden": 32,
+      "activation": "GELU",
+      "dropout": 0.1
+    }
+  },
+  "delta": "4*tanh(g(h)/4); final weight+bias zero-initialized; correction input=head512 only; five base logits never correction inputs.",
+  "output": "Add delta to system raw logit only. Other four raw logits unchanged; non-system conditional distribution invariant, but absolute probabilities/argmax/CoT recall may change.",
+  "scalers": "Head512 uses completed head-probes scaler,578090densefit-only. Frozen dense128 retains exact embedded original8640 scaler.",
+  "base_cache": {
+    "dtype": "float32",
+    "shape": [
+      755282,
+      5
+    ],
+    "chunk_size": 4096,
+    "cache_bytes": 15105640,
+    "legacy_model": "frozen dense-mlp128",
+    "streamed": true,
+    "binding": "All rows/sample_ix/cache_ix, both feature SHA, both scaler SHA, model/source/completion SHA. Reject missing/truncated/nonfinite/hash drift on any resume."
+  },
+  "zero_control": {
+    "full_validation_rows": 173032,
+    "probability_max_abs_difference_limit": 0.0005,
+    "record": [
+      "mean and max difference to frozen dense saved p",
+      "argmax changes",
+      "system decisions at original threshold",
+      "metrics at original frozen threshold",
+      "same validation helper retuned threshold and metrics"
+    ],
+    "third_trained_candidate": false,
+    "claim": "Mathematical zero-offset identity; actual floating arithmetic compared with tolerance, never claim unverified bit identity."
+  },
+  "training": {
+    "seed": 20261021,
+    "fit_rows": 578090,
+    "validation_rows": 173032,
+    "optimizer": "AdamW",
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "batch_size": 4096,
+    "updates_per_epoch": 142,
+    "last_batch_instances": 554,
+    "max_epochs": 45,
+    "min_epochs": 10,
+    "patience": 8,
+    "gradient_clip": 5.0,
+    "loss": "Full five-class mean CE",
+    "maximum_workers": 2,
+    "worker_gpu": "one GPU per worker after baseline cache is complete",
+    "supervision": "parent PID lease, terminate/wait/kill/reap on failure"
+  },
+  "selection": {
+    "controls": [
+      "original dense128 frozen validation",
+      "delta0-cache retuned via same validation helper"
+    ],
+    "guards_against_each_control": "original four profile systemF1 loss<=.02 and five-wayaccuracy loss<=.01; long-full and tailF1 nondecrease; every five profile systemFPR<=.05; tolerance1e-12",
+    "promotion": "mean5profileF1 > max(two controls)+1e-12; rank highest mean among dual-guard eligible; else retain diagnostic only",
+    "no_test_tuning": true
+  },
+  "portable": "Consumes raw8640 plus raw512 at current token; frozen baseline SHA + embedded scaler, independently saved head correction; full validation zero-offset and nonzero portable checks required.",
+  "limitations": [
+    "Two frozen feature banks share exact rows but their LM extraction batches differ. Do not claim isolated causal head effect.",
+    "Other four classes relative ordering cannot change; cannot repair CoT/tool internal argmax confusion.",
+    "Development validation reused; any accepted model still needs new independent confirmation."
+  ]
+}
