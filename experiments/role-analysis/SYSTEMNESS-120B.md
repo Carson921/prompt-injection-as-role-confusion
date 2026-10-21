@@ -1,5 +1,7 @@
 **GPT-OSS-120B MXFP4 systemness 实验入口**
 
+从原文方法、训练步骤到最终 checkpoint 的中文说明，含原图与优化后的对照图，见[训练指南](TRAINING-GUIDE-120B.zh-CN.md)。
+
 **最新独立确认（2026-10-21）**
 
 互补两头角色读出已完成全新确认。120B底座保持冻结，使用原生MXFP4及4×A40；训练的是20545参数的system残差读出。固定模型为[640维读出](outputs/local-gptoss120b/systemness-complementary-head-readout/models/new.npz)，正常system阈值为`0.5201616161616162`，输入头顺序为`458,462,2045,460,459,2047,456,997,247,2248`（0起编号）。

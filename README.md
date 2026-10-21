@@ -130,6 +130,12 @@ The first notebook builds model-specific conversation data from `toxicchat` and
 The second notebook trains role probes on tag-induced role geometry and projects
 both ordinary conversations and controlled examples into role space.
 
+For the local GPT-OSS-120B MXFP4 follow-up, see the
+[Chinese training guide](experiments/role-analysis/TRAINING-GUIDE-120B.zh-CN.md).
+It explains the original method, the subsequent classifier changes, the archived
+training dependencies, and the independently confirmed results with original and
+new figures.
+
 ## 2. CoT Forgery Evaluations
 
 This workflow runs CoT Forgery in both chat and agent settings. The chat
