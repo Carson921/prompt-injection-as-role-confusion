@@ -213,3 +213,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 扩展长正文的正式CPU准备已正常退出：固定8192行中752条达到1024-token最低长度，精确正文/前缀去重后751条，按冻结规则取352个新来源并独立划分fit256/validation96。历史2828个已知C4来源已恢复完整/192/1024前缀指纹，并排除原249两份库存；原249缺完整URL/行号的限制仍保留。[准备完成](outputs/local-gptoss120b/systemness-long-augmentation/data-complete.json)、[扫描](outputs/local-gptoss120b/systemness-long-augmentation/scan-audit.json)、[排除审计](outputs/local-gptoss120b/systemness-long-augmentation/exclusion-audit.json)。共1760个native输入、1814032输入tokens，独立解析1802240个完整内容位置后取389120个特征位置，五类严格等量、system标签正常保留。新数据尚未证明准确率收益。
 
 [独立新bank提取入口](systemness_long_augmentation_extract.py)及[元数据提取计划](outputs/local-gptoss120b/systemness-long-augmentation/extraction-plan.json)在GPU启动前固定；[CPU合成及独立附审](outputs/local-gptoss120b/systemness-long-augmentation-preparation/extractor/preparation.json)验证完整行覆盖、native位置、所选头顺序、禁写hook和断点恢复，不代替真实四卡运行。新bank为389120×512 F16（380MiB），旧bank保留；仍使用四张A40上冻结的原MXFP4底座。
+
+
+新352篇来源的[实际独立重放审计](outputs/local-gptoss120b/systemness-long-augmentation/preparation-audit/actual-source-replay.json)已正常退出：从固定C4 archive恢复2828个历史来源与352个新来源及原249双库存的完整/192/1024指纹，未发现行号、URL或正文/前缀碰撞；用独立native解析核对全部1760输入、1802240正文位置和389120抽样位置。独审未重新扫描未选中的窗口候选排序，原249的行号/URL限制不变；不读取任何分类器概率。[来源准备发布清单](outputs/local-gptoss120b/systemness-long-augmentation/source-preparation-publication.json)。后续四卡提取不修改这批已完成源材料。
