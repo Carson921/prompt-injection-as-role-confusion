@@ -237,3 +237,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 新确认共用的[概率提取入口](systemness_aug_confirmation_infer.py)及[20项CPU检查与9项独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/shared-infer/preparation.json)已冻结：四张A40原MXFP4共享一次底座前向，仅临时采集8个指定头的512维F16向量，同一向量供3个缓存CPU分类器使用；旧head两阈值共享一份概率/argmax。仅持久化3份F32概率，绑定样本与缓存指纹后续跑，全部自然来源失败时保留零观测且不启动GPU。真正推理仍须实际禁写hook逐bit一致和同向量CPU/GPU分类器误差检查；本次合成审查未运行真实推理。
+
+
+新C4确认的[统计与图库入口](systemness_aug_confirmation_report.py)及[完整合成运行和独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/c4-report/preparation.json)已冻结。正式推理终态与报告源码指纹通过后才读概率；报告4条记录×5主组及6位置分箱，以来源配对2000次bootstrap生成264个区间、396个比较。固定17对PNG/PDF包括12个多轮来源、4个system正文0–1023位置图和四记录位置曲线；三实际模型并排，旧head两阈值均在system行，保留失败与未达目标。现有图片均为/tmp合成验收图，尚无新测试实际结果。
