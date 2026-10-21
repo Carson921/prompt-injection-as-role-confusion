@@ -266,3 +266,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 [自然fit配对实验的前瞻设计](outputs/local-gptoss120b/systemness-natural-fit-preparation/root-prospective-design.json)已在新分类器训练及public64预测前固定。旧578090行加255clean来源63403行，共641493实例/157步/末批2517；matched额外槽逐位置匹配S/U/A标签，以私有RNG一次抽取旧fit，不使用验证。两arm原初始化/scaler相同，仍仅旧5组早停，best/history先冻结再评估newC4/public64。报告8条模型/阈值记录，继承的四seed均值虽未晋级也作为强控制保留；11组33项P/R/BAcc最小值须≥90%，且new-max33严格胜matched、旧head及继承ensemble同目标控制并通过所有防退步约束。该开发门槛不能替代全新C4/自然来源、多图及长文位置独立确认；目前仍没有本轮新训练结果。
+
+
+自然dev的[独立特征提取入口](systemness_natural_dev_extract.py)、[元数据计划](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-plan.json)和[19项CPU/34项独审](outputs/local-gptoss120b/systemness-natural-fit-preparation/extractor/preparation.json)已先于GPU固定。既有320dev中仅保留255cleanfit+64val=319输入/80116内容位置，整篇污染fit的320位置排除；原4e12 sample_ix及原prompt/cache映射保留，所有native S/U/A正文均采集。新bank约78.24MiB，旧bank不删；仅固定首256个cleanFIT已保存F16向量计算原head CPU/GPU数值一致性，绝不在提取阶段计算public64val分类器概率。尚未完成正式GPU提取；完整prefix若缺最终完成标记会拒绝自动恢复，需人工核验。
