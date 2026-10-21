@@ -133,8 +133,14 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 后续[条件确认协议](outputs/local-gptoss120b/systemness-head-confirmation-preparation/conditional-protocol.json)及[独立入口](systemness_head_confirm.py)在新读出训练开始前固定，只有完成验证并通过晋级约束的候选才能准备新测试。先冻结残差、已发布attention、dense128和所选head四模型及阈值，再从相同固定C4快照另取400篇一般原文和64篇真实1024正文，排除包括最近464篇确认在内的全部已知来源。报告四模型逐组及完整尾部指标、2000次来源配对区间、12个固定来源的5×4角色概率图及分位置曲线。34项CPU检查和独立审查已通过，包括完整合成尾部、图集和缓存/来源/模型签名篡改拒绝；尚未准备或推理这批新测试。
 
+混合头验证完成后，由[单独报告入口](systemness_head_probes_report.py)只读冻结的dense128与四候选概率，复算五profile及尾部指标、记录所有未晋级原因，生成12个预定C4验证来源的五角色×五模型tomato图以及F1和分位置曲线。每个单消息角色版本为原有64个评分采样位置，不能声称全正文覆盖；这些仍是开发验证，不算新增独立测试。[报告规格与15项CPU检查](outputs/local-gptoss120b/systemness-head-probes-report-preparation/report-spec.json)及7项独立CPU附审已固定，实际图集尚未生成。
+
 新增自然对话的数据来源也已完成CPU准备和独立去重审查：[来源与模板提案](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/source-proposal.json)、[可重放入口](systemness_natural_sources.py)。固定OpenAssistant/oasst1与ToxicChat的官方revision及快照SHA，从2296个合格来源中按预定SHA顺序提出448个根对话，训练/验证/测试分别256/64/128，每组两来源均衡。排除全部200个旧请求，包括16次失败，以及旧OASST树和与旧ToxicChat文本对应的108个原生ID；全树用户文本、原文/规范化/标签清理后的正文和192-token前缀、URL均参与去重。ToxicChat的0124/1123训练用户文本和ID完全相同，更换该配置不能视为新样本。旧加载器未固定revision，不能追认其版本。
 
 本次另固定80条正常system正文，训练/验证/测试为32/16/32条，与旧44条及跨组的精确、规范化、前缀匹配均无碰撞。测试32条措辞各配4个来源，正类区间须按32个措辞刺激聚类，不能把128段对话或token当作独立system刺激。措辞共享部分指令主题，不声称语义独立。原始公开快照只存忽略缓存；发布来源ID、指纹、措辞、分配和审计。此阶段**没有生成新对话或评估新测试**，生成路径、预算和失败规则仍需单独固定；OASST最多保留两条真实用户轮，ToxicChat仅一条，真实analysis/final须分开记录，不伪造截断后的final。[来源排除证据](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/source-exclusion-proof.json)、[模板审计](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/template-audit.json)、[生成提案及边界](outputs/local-gptoss120b/systemness-natural-sources/candidates/bb1bfe8c11fbaae2/generation-proposal.json)。
 
 除了正在进行的混合头读出，后续优先考虑冻结dense128、仅学习有界的system logit修正，融合原有短文/多轮能力和全局头的长文信号；其次增加真实长system指令和只在fit内挖掘的角色冲突困难样本。这些是待检验方向，并无已确认的提升。若使用前序token的特征训练序列读出，应作为额外上下文模型单列，与当前逐token读出分别报告。角色可解码性也不等同于模型遵守指令层级的行为；[内部表征研究](https://arxiv.org/abs/2608.28648)在其他设置中同样区分读出和干预效果，不能把其指标当作本120B探针的预期收益。
+
+[仅开发验证的互补诊断](outputs/local-gptoss120b/systemness-fusion-preparation/validation-complementarity.json)使用两模型各自冻结的阈值，在相同173032行上重现旧指标。选头LDA在完整长文/尾部分别修复1455/870个dense128的system二分类错误，同时把891/443个原本正确的位置变错；多轮组只修复137个，却引入2873个错误。可见长文互补性，但不能据此证明修正网络能识别这些情况。诊断中的oracle使用真实标签逐token在这两组冻结判断中择优，仅是这一选择操作的上界，不是任意新分类器的上界或可部署成绩。system logit修正只能保留非system条件分布，五类argmax和CoT recall仍可能改变，不能修复CoT/tool之间的相对排序。[诊断范围与未执行的方法提案](outputs/local-gptoss120b/systemness-fusion-preparation/diagnostic-scope.json)。
+
+另一个可节省生成成本的数据方案，是保留新公开来源中的真实user/assistant文本，再用固定正常system正文构建native输入。已核验fit的128个OASST根均有干净直接回复，128个ToxicChat根均有非空model_output；前者为公开人类对话，后者来自Vicuna演示且精确checkpoint未知。该变体只有system/user/assistant，CoT/tool指标必须为N/A；新system并非这些源回复当时的生成条件，不能据此评估遵循新指令的行为。分支质量、assistant跨划分去重和序列化协议尚未固定，未检查或生成该方案的test回复，也未启动其训练。
