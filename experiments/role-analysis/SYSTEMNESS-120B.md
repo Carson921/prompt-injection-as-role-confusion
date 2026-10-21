@@ -243,3 +243,8 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 新自然确认的[统计/图库入口](systemness_aug_natural_report.py)及[16项合成与13项独立附审](outputs/local-gptoss120b/systemness-long-augmentation-confirmation-preparation/natural-report/preparation.json)也已冻结。4记录×all/clean×全部/OA/TC共24行指标，原始依赖组件先形成再按来源/clean筛选，2000次配对bootstrap给出216个区间、324个比较；零观测和少于2组件保留N/A，旧head两阈值的五类结果、AUROC/AP严格相同。图库固定6OA＋6TC和汇总共13对，失败来源明确占位不替换。以上仍为合成审查，未产生本轮新自然测试成绩。
+
+
+长正文扩展的四卡提取与匹配训练现均已正常完成。[实际bank独审](outputs/local-gptoss120b/systemness-long-augmentation/extraction-audit/actual-bank-audit.json)独立重算全部440批的样本/特征指纹：389120×512 F16全部finite、无零行，实际MXFP4/4×A40及禁写hook证据一致，同256保存向量的分类器CPU/GPU最大差1.42e-14。新模型18轮、3996次更新（best10轮/2220步）；matched13轮、2886次更新（best5轮/1110步），所以每轮预算相同、实际总步数不同。
+
+[六条正式开发记录](outputs/local-gptoss120b/systemness-long-augmentation-probes/report.txt)和[实际结果独审](outputs/local-gptoss120b/systemness-long-augmentation-probes/actual-audit/actual-development-audit.json)全部完成，48行组指标＋6行仅描述pool复算最大差5.56e-16。预定new-maximin没有晋级：8组P/R/BAcc最小值85.31%，低于matched的90.06%与旧head重新校准的89.78%；原natural system F1由98.07%降至92.07%，原full尾部F1由93.37%降至92.41%。新96篇开发长文尾部F1虽由89.48%升至91.04%，不能抵消这些退步。[完整负结果与预算发布记录](outputs/local-gptoss120b/systemness-long-augmentation-probes/results-publication.json)。原正式模型保留，未声明新测试模型快照、未选择新测试ID或运行条件确认，长期system精确率/召回率目标仍未达到。下一步优先检查fit分布与长文训练占比，并另行冻结多随机种子等权集成实验。
