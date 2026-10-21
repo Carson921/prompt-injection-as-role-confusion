@@ -298,3 +298,6 @@ System专门残差头的正式训练与复核已完成：[10条开发记录](out
 
 
 下一项[固定长文权重的来源替换设计](outputs/local-gptoss120b/systemness-long-mix-residual-preparation/root-prospective-design.json)已在真实抽样和新训练前固定：从旧132篇各保留每role128点（每半64），已有新256个fit来源各取每role66点（每半33），各84480行，总full仍168960/总641493=26.34%。role/半段每桶8448个被移除旧槽与8448新行严格配对，私有RNG一次映射，不影响Torch；原non-full409130和clean自然63403不变。matched精确复现本轮binary-new原数据，另将已审计269c模型作为固定控制。来源广度与单文密度同时变化，不能宣称纯来源因果；不增加96val或任何测试，原bound4/五类定义和全部保护条件保留。目前仅设计/源码实现阶段，尚未选择真实replacement slots或训练。互补头扫描保留为后备：[预算与方案](outputs/local-gptoss120b/systemness-method-proposals/complementary-two-head-formal-proposal.json)。
+
+
+另补[全部96篇C4开发来源的位置诊断](outputs/local-gptoss120b/systemness-binary-residual/diagnostics/long-position/long-position.png)及[20行分箱计数](outputs/local-gptoss120b/systemness-binary-residual/diagnostics/long-position/long-position-metrics.csv)：按真实body_offset四等段汇总五读出器，每模型61440位置、每箱15360，768–1023末段P/R/F1约88–89%，共同暴露尾部瓶颈。原始正文真1024，但每角色仅采128位置；散点图库及本聚合曲线都是开发诊断，不能称为完整token或新独立测试。固定阈值、样本、模型均未改，新LM前向为0。
