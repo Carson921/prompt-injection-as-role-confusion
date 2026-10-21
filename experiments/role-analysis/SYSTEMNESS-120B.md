@@ -272,3 +272,6 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 
 自然dev四卡原MXFP4提取已正常退出：[完成记录](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-complete.json)和[实际独立bank审计](outputs/local-gptoss120b/systemness-natural-dev-features/actual-audit/actual-bank-audit.json)。319输入的80116×512 F16向量全部写入、finite且无零行，80批字节及原dev行/角色/位置映射独立重算一致，污染fit整篇320位置未进入bank；原4张A40及禁写hook逐bit一致证据绑定。仅固定256cleanFIT向量的分类器CPU/GPU最大概率差5.36e-7，未计算public64验证分类器概率、未跑新分类器训练或任何测试。该独审不重新运行LM/GPU；原始dev native标签已有来源缓存审计，新增审计核对提取对应关系。[提取发布清单](outputs/local-gptoss120b/systemness-natural-dev-features/extraction-publication.json)。
+
+
+[自然fit训练入口](systemness_natural_fit_probes.py)、[正式协议](outputs/local-gptoss120b/systemness-natural-fit-probes/protocol.json)及[28项CPU/27项独立审查](outputs/local-gptoss120b/systemness-natural-fit-preparation/trainer/preparation.json)已在实际训练前冻结。63403个匹配槽逐行标签与new相同，完整紧凑Parquet抽样表已归档，plan/model只绑定其SHA而不重复嵌大表；两arm每轮641493/157更新/末批2517，原fit-only scaler及初始化不变。所有新C4/public64分类预测均在best/history/GPUoldp冻结之后产生；只用cleanFIT256作CPU/GPU读出数值校验。八条记录及11组max33、原savedGPU护栏和继承四seed控制均明确保留，目前尚无新训练结果。
