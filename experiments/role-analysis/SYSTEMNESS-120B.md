@@ -107,3 +107,9 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 全部放入user标签时，完整formal分母分别为64437和66618，user准确率仅16.77%和17.55%，system误报率为1.60%和2.80%。这说明systemness较好不能代表整体结构角色稳健；正常native对话中CoT/tool混淆仍明显。原无标签变体只报告语义投影，不定义正式角色准确率。配对bootstrap以8个原system模板或32个未见模板为重采样单位，各2000次，不把token当独立样本。旧语义子集的all-user准确率单列为16.44%/17.29%，不可与完整formal分母混用。
 
 [完整复核报告](outputs/local-gptoss120b/systemness-natural-recheck/report.txt)、[全部指标](outputs/local-gptoss120b/systemness-natural-recheck/metrics.csv)、[旧分母对照](outputs/local-gptoss120b/systemness-natural-recheck/legacy-all-user-metrics.csv)、[模板配对区间](outputs/local-gptoss120b/systemness-natural-recheck/paired-comparisons.csv)、[12段固定对话×三种格式的36张三模型图](outputs/local-gptoss120b/systemness-natural-recheck/plots/gallery-index.md)。
+
+复核是同一冻结模型、输入及阈值的重新推理，并非旧概率逐项复现。独立[旧新概率审计](outputs/local-gptoss120b/systemness-natural-recheck/legacy-probability-audit.json)确认原324798行及720个逐token输入完全相同，但残差控制在原64294个native位置上有48个system阈值判断、581个argmax改变，概率最大绝对差0.9899，平均差0.00346；旧存档概率仍可精确复算旧报告。批次成员、padding及读出分块布局均改变，尚未通过额外GPU复刻确定差异原因，因此不称为逐bit或可忽略的舍入差异。三个模型在本次复核中共享同次前向的对应特征，旧报告原样保留。最终读出相对残差控制的native五角色准确率下降4.75/5.08个百分点，CoT recall下降11.60/12.29点，不能只看system指标。
+
+下一项[注意力头筛选实验](systemness_head_scan.py)扫描全部36层×64个query head，在o_proj之前读取每头64维向量；语言模型仍为冻结MXFP4。原132篇完整长fit原文按document_id%5划成101篇统计训练和31篇头筛选，两组都属于fit；每头用固定收缩LDA，在31篇上按原文平均的全位置/512+尾部AUROC等权选8头，再用全部132篇fit的统计量重拟合。8头的五类概率等权平均，只读取当前token的特征，不把位置、标签或配对作为推断输入。全层特征在线累计统计，不保存全层原始激活。
+
+方法与数据已[提前冻结](outputs/local-gptoss120b/systemness-head-scan/plan.json)，数学、padding、hook不改激活、退化head和portable聚合均通过[CPU检查](outputs/local-gptoss120b/systemness-head-scan/cpu-preflight.json)。随后只在原173032行、五种native验证组上校准一个全局阈值和评估；头筛选只用31篇fit，2304选8仍可能过拟合。此诊断尚不能视为提升，也不替换当前模型，不读取已报告464篇或旧测试来决定方法。若得到新候选，仍需另取去重的新原文确认。
