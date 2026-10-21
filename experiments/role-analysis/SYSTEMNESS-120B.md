@@ -292,3 +292,6 @@ System专门残差头的正式训练与复核已完成：[10条开发记录](out
 新模型全部四类non-system原始logits保持逐bit一致，所有开发位置的非system不同类winner交换为0；旧natural CoT recall为79.7205%、五类accuracy90.3256%，相对上一轮CE的64.0534%/83.4058%避免明显破坏，原head本来已有79.5722%/90.2253%，因此不能称为CoT瓶颈已解决。new-max33的min33为89.9089%，低于90%及matched89.9756%和ensemble90.1626%；新C4尾部P/R/F1仅89.9381%/89.9089%/89.9235%，旧尾部F1为93.2323%，较旧head-max33仍退0.3005个百分点。全部预定gate与失败记录保留，不晋级、不启动新独立测试，也不改旧阈值/正式模型。
 
 本轮[固定16来源图集](outputs/local-gptoss120b/systemness-binary-residual-development-plots/gallery-index.md)已实际生成16对PNG/PDF：6OA＋6TC＋4带CoT的legacy自然对话，每图五个读出器、五行角色概率，共[80行例级计数](outputs/local-gptoss120b/systemness-binary-residual-development-plots/example-metrics.csv)。来源rank在新候选训练前固定，所有例子保留；逐真实token位置散点、缺口不补点、不平滑，已查看OA与legacy首例。全部是复用开发数据，并非新的独立确认；后续会检查精确阈值可行性和bound4理论上界，以判断更有价值的下一步，不能据此改写本轮负结果。
+
+
+补充[开发诊断](outputs/local-gptoss120b/systemness-binary-residual/diagnostics/publication.json)：当前残差模型全部442749个F32阈值事件的最优min33也仅89.9268%，较冻结网格只增加0.0179个百分点。新C4尾部precision≥90%要求τ≥0.549163，recall≥90%要求τ≤0.540249，两集合无交；不存在任何全局阈值通过全部既有条件，当前负结果与阈值均不改。另从原raw logits重算的gold ±4 oracle上界为97.9004%，F32/F64及固定网格/全事件结论一致，说明bound4不是90%绝对硬限制，不能证明该上界可学习或可部署。这些都是已用开发数据诊断，无测试/GPU/新训练，下一步优先保持长文总权重，增加fit来源广度，再决定是否付出新头扫描代价。
