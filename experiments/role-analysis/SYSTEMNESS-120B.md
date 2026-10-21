@@ -71,14 +71,16 @@ C4 多轮输入按固定角色协议用原文切片构造；自然对话来自�
 
 新一轮保持local16/20/24特征，使用全部132篇完整长训练原文，每角色均匀采256个位置；31篇完整长验证原文每角色128位置。815个输入、188800个采样位置均已通过独立native角色解析和正文SHA核验。训练会替换对应旧long-single稀疏行；验证保留原四组及其匹配指标，另加long-full组，其中10篇与原长验证重叠，不重复计为新原文。[数据计划](outputs/local-gptoss120b/systemness-long-full/plan.json)、[准备完成记录](outputs/local-gptoss120b/systemness-long-full/data-complete.json)。
 
-[读出入口](systemness_long_probes.py)预设五个候选：原数据MLP-64、完整长文MLP-64/128和线性读出，以及原数据重采样MLP-64。主对照重采样原413290行至每轮578090实例，与完整长文候选均为142次更新；原数据未重采样读出保留作次对照。它们共用原fit标准化参数。独立早停仍可能产生不同最佳更新数，且此控制没有匹配长文权重，不能称为严格的最终总步数或全部训练分布匹配。当前尚无本轮读出训练结果。
+[读出入口](systemness_long_probes.py)的五候选均已完成：原数据MLP-64、完整长文MLP-64/128和线性读出，以及原数据重采样MLP-64。主对照重采样原413290行至每轮578090实例，与完整长文候选均为142次更新；原数据未重采样读出保留作次对照。它们共用原fit标准化参数。独立早停仍可能产生不同最佳更新数，且此控制没有匹配长文权重，不能称为严格的最终总步数或全部训练分布匹配。[选定MLP-128](outputs/local-gptoss120b/systemness-long-full/selection.json)相对重采样控制的完整长文system F1为67.21%对58.37%，尾部60.41%对48.42%；同结构MLP-64也分别达到67.33%和60.64%。本轮五组平均F1含新增完整长文组，不能直接与旧四组均值比较。单消息和完整长文仍未达到工作目标。
 
 已提前声明后续独立确认：400篇新一般原文，加64篇另行去重、真实达到1024-token的完整长原文，共464篇独立来源；原400篇中的64个up-to1024长变体仍是配对子集。[确认协议](outputs/local-gptoss120b/systemness-long-full/confirmation-plan.json)。模型、阈值先用验证集冻结，再准备和执行该确认。当前这组独立确认尚未运行。
 
-本轮初始化在删除已声明的两个可重建特征缓存后，因即时可用空间检查失败而退出，尚未进入新长文提取。原文、行表、已发布模型和分组完整保留：[失败记录](outputs/local-gptoss120b/systemness-long-full/initialization-failure.json)。[显式恢复入口](systemness_recover_local_bank.py)按历史两个阶段重算原特征，只有pilot与完整前缀的float16 SHA都与旧值完全相同，才允许原提取程序继续；恢复不会删除其他缓存。
+本轮初始化在删除已声明的两个可重建特征缓存后，因即时可用空间检查失败而退出，当时尚未进入新长文提取。原文、行表、已发布模型和分组完整保留：[失败记录](outputs/local-gptoss120b/systemness-long-full/initialization-failure.json)。[显式恢复入口](systemness_recover_local_bank.py)已正常退出，完整566482行原特征重建完成；pilot SHA与完整前缀SHA均与旧值逐bit一致：[恢复审计](outputs/local-gptoss120b/systemness-long-full/cache-recovery.json)、[pilot阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/pilot.json)、[剩余阶段](outputs/local-gptoss120b/systemness-long-full/recovery-stages/remaining.json)。新增188800位置也已提取完成，全755282行通过有限值、非空行和文件SHA核验：[提取完成记录](outputs/local-gptoss120b/systemness-long-full/extraction-complete.json)。
 
 后续候选方法仍是待验证假设。优先考虑同正文同位置、不同正式角色之间的配对排序损失，在训练中压低内容语义的干扰，推理仍只读取单个token特征；以及在o_proj之前选择或稀疏组合注意力头。前者可参考[监督对比学习](https://arxiv.org/abs/2004.11362)的监督结构，后者可参考[注意力头探针](https://arxiv.org/abs/2306.03341)的分析方法，这些论文并不证明本任务会有提升。另可增加命令语气与正式角色相反的困难样本、更多自然对话system模板，以及轮数和工具循环不同的正常native输入。所有system标签正常保留，错误挖掘只使用fit数据，方法和阈值仍在验证集决定。
 
-配对排序已实现为独立的[三候选入口](systemness_paired_probes.py)，待完整长文五候选结束后执行。132篇fit正文形成33792组五角色同位置配对，每步增加128组辅助前向，仅计算排序损失；原CE仍为每轮578090实例和142次更新。lambda=0、0.1、0.5共用初始化、CE顺序和隔离的辅助dropout RNG。CPU检查已验证lambda0与纯CE梯度一致、排序梯度方向及fit配对索引。辅助梯度只作用完整长文，因此收益需归于配对辅助目标整体，尚不能区分配对结构与普通长文重加权。
+配对排序[三候选](systemness_paired_probes.py)已全部完成。132篇fit正文形成33792组五角色同位置配对，每步增加128组辅助前向，仅计算排序损失；原CE仍为每轮578090实例和142次更新。lambda=0、0.1、0.5共用初始化、CE顺序和隔离的辅助dropout RNG。CPU检查已验证lambda0与纯CE梯度一致、排序梯度方向及fit配对索引；实际lambda0的全部173032行验证概率与原dense-MLP64逐项完全一致。lambda0.1及0.5均未晋级，五组平均F1相对控制分别下降0.02和0.39个百分点：[完整负结果](outputs/local-gptoss120b/systemness-paired-pilot/selection.json)。辅助梯度只作用完整长文，此试验不能单独区分配对结构与普通长文重加权的影响。
 
 在任何新确认准备前，464篇协议升级到v2，并[声明最终选择规则](outputs/local-gptoss120b/systemness-final-readout/plan.json)。[最终选择入口](systemness_final_select.py)先独立重算两试验所选模型的同一验证行概率指标；配对候选须先通过自身匹配控制的晋级，再超过长文候选平均F1，完整长文和尾部F1均不下降，原四组各自system F1回退最多2个百分点，并满足accuracy/FPR限制。否则保留长文候选。确认仍比较原残差、已发布attention与最终读出三个冻结模型；确认准备锁出现后禁止重选。
+
+最终选择已正常完成，保留[dense-MLP128](outputs/local-gptoss120b/systemness-final-readout/selection.json)，system阈值0.6965757575757576；[选择报告](outputs/local-gptoss120b/systemness-final-readout/report.txt)保留所有跨试验门控和未采用配对候选的理由。这里仍是开发验证结果，独立确认另行记录。
