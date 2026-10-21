@@ -1,5 +1,36 @@
 **GPT-OSS-120B MXFP4 systemness 实验入口**
 
+**最新独立确认（2026-10-21）**
+
+互补两头角色读出已完成全新确认。120B底座保持冻结，使用原生MXFP4及4×A40；训练的是20545参数的system残差读出。固定模型为[640维读出](outputs/local-gptoss120b/systemness-complementary-head-readout/models/new.npz)，正常system阈值为`0.5201616161616162`，输入头顺序为`458,462,2045,460,459,2047,456,997,247,2248`（0起编号）。
+
+新测试含528个C4原文（400一般＋另128个真实1024正文）和128个公开自然来源（64 OASST＋64 ToxicChat），共1320938个正常内容token。C4多种视图/位置箱不重复计为独立原文；自然对话按32个system措辞家族形成32个依赖组件。11个C4组及6个自然all/clean/来源分层的system P/R/BAcc点估计全部达到预声明90%目标，最低为长文512–1023位置recall的91.92%。
+
+| 全新测试组 | System precision | System recall | Balanced accuracy | 五类argmax accuracy |
+|---|---:|---:|---:|---:|
+| C4单消息 | 99.33% | 99.12% | 99.47% | 99.39% |
+| C4多轮 | 99.79% | 99.83% | 99.90% | 99.44% |
+| C4配对长文子集 | 97.11% | 96.50% | 97.89% | 98.30% |
+| C4完整1024正文 | 94.49% | 93.84% | 96.23% | 95.47% |
+| C4正文512–1023 | 92.91% | 91.92% | 95.08% | 93.75% |
+| 自然总体 | 99.83% | 100.00% | 99.99% | 98.53% |
+| 自然OASST | 99.81% | 100.00% | 99.99% | 98.95% |
+| 自然ToxicChat | 99.85% | 100.00% | 99.99% | 97.95% |
+
+长文尾部recall从同批旧head原阈值的84.73%升至91.92%，匹配容量对照为88.61%；new相对matched的配对增益为3.31个百分点，95%区间[1.82,4.79]。新读出的尾部P/R本身95%文档bootstrap区间分别为[89.74%,95.64%]和[88.46%,95.01%]：本轮通过的是预声明点目标，尚不能声称总体precision/recall的95%下界都达到90%。五类结果与阈值二分类分别报告；校准不改变五类argmax。
+
+[实际训练标签审计](outputs/local-gptoss120b/systemness-complementary-guard-confirmation-preparation/training-system-tags/audit.json)核对每轮641493实例中的122740个system正例，涉及2961个训练输入，均正常保留`<|start|>system<|message|>`；另对64个输入完整重编码核对正例位置。原开发9个护栏全部保留并通过，新测试new/matched的非system到另一非system换类均为0。
+
+- [最终确认清单、模型/证据指纹与限制](outputs/local-gptoss120b/systemness-complementary-confirmation/final-confirmation.json)
+- [全部30对固定tomato PNG/PDF图](outputs/local-gptoss120b/systemness-complementary-confirmation/final-gallery.md)
+- [C4完整报告](outputs/local-gptoss120b/systemness-complementary-confirmation/report/report.txt)及[独立实际结果复算](outputs/local-gptoss120b/systemness-complementary-confirmation/actual-result-audit/audit.json)
+- [自然对话完整报告](outputs/local-gptoss120b/systemness-complementary-natural-confirmation/report/report.txt)及[独立实际结果复算](outputs/local-gptoss120b/systemness-complementary-natural-confirmation/actual-result-audit/audit.json)
+- [测试前模型/阈值/运行源码快照](outputs/local-gptoss120b/systemness-complementary-confirmation-preparation/readout-snapshot.json)
+
+独审分别重算C4的44行指标/264区间/396配对比较及自然的24行指标/216区间/324比较，均采用2000次来源或依赖组件配对bootstrap。自然回复是公开原记录，非120B在新system措辞下生成；仅观察S/U/A真值，CoT/tool记N/A。此结果证明角色解码能力，不证明行为上遵循system指令。原`/workspace`挂载不可读取，本轮使用`/dev/shm/role-analysis-gptoss120b`中校验过的官方checkpoint，未宣称与不可用挂载逐字对照。
+
+**以下为早期及中间试验的历史记录。**
+
 此页记录已冻结并完成独立测试的48候选轮次，以及后续验证和独立确认。语言模型权重保持冻结，使用四张 A40 提取 MXFP4 模型的激活，只训练角色读出。训练与评估正常保留 system，五类输出顺序为 system、user、cot、assistant、tool。
 
 初始48候选轮次的最佳读出为 1200 篇训练原文、单消息加多轮上下文上的 MLP-64。输入拼接第 16/20/24 层归一化前残差，每层 2880 维，共 8640 维；层编号从 0 开始。阈值和模型只用验证集选择，测试前固定。后续完整长文读出及新增464篇确认记录在下半页。

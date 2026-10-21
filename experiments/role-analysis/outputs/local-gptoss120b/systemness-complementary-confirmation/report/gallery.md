@@ -1,0 +1,20 @@
+# Fixed C4 probability gallery
+
+- [complementary-confirm-c4-0](plots/general-multi-00.png)
+- [complementary-confirm-c4-36](plots/general-multi-01.png)
+- [complementary-confirm-c4-72](plots/general-multi-02.png)
+- [complementary-confirm-c4-108](plots/general-multi-03.png)
+- [complementary-confirm-c4-145](plots/general-multi-04.png)
+- [complementary-confirm-c4-181](plots/general-multi-05.png)
+- [complementary-confirm-c4-217](plots/general-multi-06.png)
+- [complementary-confirm-c4-253](plots/general-multi-07.png)
+- [complementary-confirm-c4-290](plots/general-multi-08.png)
+- [complementary-confirm-c4-326](plots/general-multi-09.png)
+- [complementary-confirm-c4-362](plots/general-multi-10.png)
+- [complementary-confirm-c4-399](plots/general-multi-11.png)
+- [complementary-confirm-c4-400](plots/full-system-000.png)
+- [complementary-confirm-c4-442](plots/full-system-042.png)
+- [complementary-confirm-c4-484](plots/full-system-084.png)
+- [complementary-confirm-c4-527](plots/full-system-127.png)
+
+[Full position curve](plots/full-system-by-position.png)
