@@ -74,6 +74,12 @@
 
 如果只保留原文的 C4＋Dolma3 单消息训练方式，我们已经完成的线性探针优化在新增单消息测试上达到五分类 78.31%，但在固定 tomato 多轮案例中 CoT 召回仍为 0%。[单消息训练的实际效果与完整五分类 tomato 图](examples/single-message-only-tomato.md)单独列出了模型、数据范围和失败位置，避免与后来的多轮训练成绩混用。
 
+把最终最优 `new.npz` 直接用于**论文原始 gardening 对话**，在 4×A40、原生 MXFP4 下实测，正常 delimiter 的完整正文准确率为 **892/916＝97.38%**：system 57/57、user 94/97、CoT 158/179、assistant 583/583；原对话没有 tool 回复。与历史单消息分类器在严格相同的旧 915 个位置比较，总体准确率由 **690/915＝75.41%** 提高到 **891/915＝97.38%**，增加 21.97 个百分点。这是两个训练数据、特征和目标均有变化的分类器之间的比较，不能把差异归因于某一个改动。
+
+![最优 new 分类器直接测试论文 gardening：完整 system 正文和五行概率](outputs/local-gptoss120b/gardening-final-checkpoint/plots/gardening-final-new-native.png)
+
+这张图保留了完整 system 段和全部正文，沿用原始日期与对话，不重新生成回答或调整模型。旧标签漏掉的结尾 emoji 续接 token 已补回，因此完整正文是 916 个，另保留旧 915 个位置用于公平比较。三种格式的实际结果、错误分布和复现命令见 [gardening 实测说明](examples/final-checkpoint-gardening.md)。
+
 我们进一步关注：在正常角色格式下，能否把 system 识别得更稳，特别是长文后半段，同时控制其他能力的退步。
 
 | 方面 | 原方法／原代码 | 我们最终采用的方案 |

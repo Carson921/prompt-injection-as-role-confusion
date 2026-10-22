@@ -38,7 +38,7 @@
 - 两个非原生格式中，各个非末消息的末 token 会连带一个分隔换行，共 6 处。图直接使用归档 token 和概率，没有把这些位置伪装成与原生格式完全相同的分词。
 - 只有正确 delimiter 列按 S/U/C/A 标签报告正式分类准确率。All-user 的形式角色全部是 user；No-tags 没有原始消息 delimiter 定义的形式角色，后两列只观察与原消息功能的对齐。
 
-正确 delimiter 下，完整 915 个正文 token 的结果是：
+正确 delimiter 下，历史归档标注的 915 个正文 token 的结果是：
 
 | 真实角色 | 判对／正文 token | 召回率 |
 |---|---:|---:|
@@ -48,6 +48,8 @@
 | assistant | 582／582 | 100% |
 | tool | 0／0 | N/A |
 | 总体准确率 | 690／915 | **75.41%** |
+
+后来按原生消息边界复核发现，完整正文实际有 916 个 token：旧字符串匹配标签漏掉了结尾 `🌱` 表情的一个续接 token，属于 assistant 正文。此处保留历史 915 个位置及其原有成绩；[最优 checkpoint 的 gardening 实测](final-checkpoint-gardening.md)同时报告完整 916 个位置和严格配对的旧 915 个位置，不把不同分母直接当作提升幅度。
 
 图里绿色 assistant 段能很好地对上 Assistantness；橙色 CoT 段的 Userness 却很高、CoTness 很低。逐 token 重算，179 个 CoT 中 **178 个被判为 user、1 个被判为 tool**。因此 75.41% 的总体准确率不能掩盖 CoT 完全失败的问题：这个案例中 assistant 正文占了 582/915，本身就超过六成。
 
