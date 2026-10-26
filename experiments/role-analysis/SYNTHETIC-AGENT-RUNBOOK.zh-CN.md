@@ -169,4 +169,15 @@ rsync -az --include='*/' --include='*.png' --include='*.pdf' --include='index.js
 
 上述白名单不复制正文输入 JSONL、特征/概率大数组、调试正文 sidecar 或 checkpoint。再按小型清单取配置、预检、环境、迁移和哈希证明，逐文件 SHA 核对后提交；不将尚缺的测试或图表写成已完成。
 
+整轮完成后，推荐使用已验证的完整小包导出器，代替逐项手动取文件。它检查真实 campaign 完成、冻结字节、7 候选、TEST/外部 2000 次 source-cluster CI、20 项原生图和 15 项 dense 图、位置诊断及报告；未完成时拒绝导出。以下在本机执行：
+
+```bash
+ssh runpod '/root/role-retraining-venv/bin/python /root/role-retraining-20261026/code-v7/export_synthetic_artifacts.py --run-dir /workspace/role-retraining-20261026/runs-v7/formal --data-dir /workspace/role-retraining-20261026/data-v7 --code-dir /root/role-retraining-20261026/code-v7 --output-dir /root/role-retraining-20261026/delivery-v7 --requirements-file /root/role-retraining-20261026/code-v7/requirements-synthetic-agent-4xa40.txt --environment-file /workspace/role-retraining-20261026/environment-freeze.txt'
+rsync -a runpod:/root/role-retraining-20261026/delivery-v7/ "$task_out/"
+cd "$task_out"
+sha256sum -c SHA256SUMS
+```
+
+导出器不修改任何训练源产物。体积较大的逐 epoch `history.json` 原字节留在远端；包内 `curve-scalars.json` 明确标为派生视图，保留每个 epoch 的 loss、DEV 排序量、六类 P/R/F1、实际采样计数和原 history SHA。包内另含 7 候选 NPZ、完整指标、图表及数值 sidecar、源码和两份配置。原始文章、对话、输入 JSONL、特征数组、完整逐 token 概率与恢复 `last.pt` 不复制。GPU 全阶段 CSV/summary 另行回传，因其最初位于旧运行根目录。
+
 V5 pilot→V7 的复用不是重训：640 个源的 raw/normalized 正文 hash、cluster/split/group/ordinal 及 FIT/DEV 输入字节完全相同，GPU/classifier/model/tokenizer 身份、七候选与保存 DEV 概率均验证；290 个必要产物保持原字节和真实计时。URL 补齐的覆盖率、新旧集合 hash 单列，来源文件 SHA 可以不同，复用依赖上述正文/源元组和实际输入的等同性；原 49 篇样本审阅诚实标为沿用。详见 V7 pilot 的 `migration.json` 与仓库[迁移证明](outputs/synthetic-agent-120b-20261026/pilot-migration.json)。正式 V7 仍使用新 4096/512/1024 配额及其审计，不能把小试复用当作正式实验完成。
