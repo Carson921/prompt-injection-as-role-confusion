@@ -181,3 +181,21 @@ sha256sum -c SHA256SUMS
 导出器不修改任何训练源产物。体积较大的逐 epoch `history.json` 原字节留在远端；包内 `curve-scalars.json` 明确标为派生视图，保留每个 epoch 的 loss、DEV 排序量、六类 P/R/F1、实际采样计数和原 history SHA。包内另含 7 候选 NPZ、完整指标、图表及数值 sidecar、源码和两份配置。原始文章、对话、输入 JSONL、特征数组、完整逐 token 概率与恢复 `last.pt` 不复制。GPU 全阶段 CSV/summary 另行回传，因其最初位于旧运行根目录。
 
 V5 pilot→V7 的复用不是重训：640 个源的 raw/normalized 正文 hash、cluster/split/group/ordinal 及 FIT/DEV 输入字节完全相同，GPU/classifier/model/tokenizer 身份、七候选与保存 DEV 概率均验证；290 个必要产物保持原字节和真实计时。URL 补齐的覆盖率、新旧集合 hash 单列，来源文件 SHA 可以不同，复用依赖上述正文/源元组和实际输入的等同性；原 49 篇样本审阅诚实标为沿用。详见 V7 pilot 的 `migration.json` 与仓库[迁移证明](outputs/synthetic-agent-120b-20261026/pilot-migration.json)。正式 V7 仍使用新 4096/512/1024 配额及其审计，不能把小试复用当作正式实验完成。
+
+## 6. 首正式 checkpoint 的 gardening 图片
+
+用户补充要求的[诊断协议](outputs/synthetic-agent-120b-20261026/gardening-diagnostic-protocol.json)只授权这一篇作者公开 gardening 对话。三种原文格式、YAML 与原生模板已逐字节固定并与作者公开提交核对；没有转移其他历史 CSV 或查询原文。输入位于远端 `/root/role-retraining-20261026/public-gardening-v7/`，CPU 准备已经完成，953/921/917 个输入 token 各包含完整 916 个正文位置。
+
+执行门禁是 `formal/candidates/linear-seed17/complete.json` 与有效 `best.npz`：至少完成 10 epochs，匹配正式 FIT/DEV 提交、标准化器、GPU/分类器源码和训练哈希。恢复用 `last.pt` 不能替代该 NPZ。小试使用已经冻结的 `pilot/best.npz`；第一正式候选不等于七候选最终选定模型。
+
+门禁通过后，在独立 tmux 中执行已准备的启动脚本：
+
+```bash
+ssh runpod 'tmux new-session -d -s role-gardening-first-20261026 bash /root/role-retraining-20261026/launch-gardening-first.sh'
+```
+
+脚本按 check→infer→report 顺序运行，整个进程组使用 `min(900 秒, 本轮授权剩余秒数)` 的 KILL timeout；推理进程另有绝对截止自保护。每卡至少 28 GiB 可用才加载 120B；不停止或暂停主训练。三种输入各 forward 一次，两个 checkpoint 共享其 16 头特征，在 CPU 各自应用自己的 FIT 标准化器。正式 TEST、主候选排序及任何参数均不因该诊断改变。
+
+产物位于 `/workspace/role-retraining-20261026/diagnostics/gardening-pilot-vs-first-formal/`：一组原生双模型对比，加每模型三种格式的单列图，共 7 对 PNG/PDF。`report-complete.json` 只有在 14 个文件、完整正文、六行概率和真实 SHA 均核对后写入。回传至仓库对应 `outputs/synthetic-agent-120b-20261026/gardening-pilot-vs-first-formal/` 并在聊天中展示真实图片；工程布局图不作为模型结果交付。
+
+该例的真实标签为 S57/D0/U97/C179/A583/T0，D/T 召回为 N/A、误报仍报告；不沿用旧五类阈值。末尾 emoji 的第 916 个续接 token 109 保留。改写格式各有 6 处句末与换行融合的 BPE，三种格式的 token ID 与坐标不能混同；只有同格式的双模型比较共享完全相同的输入。统一 user/去标签图采用原语义对齐指标，不是形式角色 accuracy。本例属于历史诊断，原完整实验仍继续到最终冻结、TEST、外部测试与报告。

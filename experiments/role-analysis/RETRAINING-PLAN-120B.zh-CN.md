@@ -218,6 +218,8 @@ A40 是 Ampere，不能直接照搬官方针对较新架构的 MXFP4 安装示�
 
 模型冻结后，再用与历史拟合数据去重的 128 条 OASST、128 条 ToxicChat 做真实对话外部测试。需要补的 S/D 前缀在开测试前固定，并说明它们不是原对话生成时的原始上下文；没有 C/T 的测试不报告其召回率。原论文 gardening 对话保留为历史诊断，不能当作从未看过的盲测。
 
+用户于 2026-10-26 补充要求：首个正式候选 checkpoint 完成后，用其固定字节副本和已冻结小试模型共同测试论文 gardening example，并回传对比图片。该诊断固定使用首个完成的 `linear-seed17` 候选，不按 gardening 分数挑选；其结果不进入七候选的 DEV 排序，也不替代正式 TEST。公开原文及三种归档格式的来源和授权范围见[诊断协议](outputs/synthetic-agent-120b-20261026/gardening-diagnostic-protocol.json)，没有 developer/tool 正文时仍报告其误报和 N/A 召回。
+
 交付内容包括：
 
 - 新的六类 `best.npz`、加载与预测代码，及包含六类顺序和模型绑定信息的冻结清单。
