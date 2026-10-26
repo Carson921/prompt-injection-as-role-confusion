@@ -201,3 +201,23 @@ ssh runpod 'tmux new-session -d -s role-gardening-first-20261026 bash /root/role
 产物位于 `/workspace/role-retraining-20261026/diagnostics/gardening-pilot-vs-first-formal/`：一组原生双模型对比，加每模型三种格式的单列图，共 7 对 PNG/PDF。`report-complete.json` 只有在 14 个文件、完整正文、六行概率和真实 SHA 均核对后写入。回传至仓库对应 `outputs/synthetic-agent-120b-20261026/gardening-pilot-vs-first-formal/` 并在聊天中展示真实图片；工程布局图不作为模型结果交付。
 
 该例的真实标签为 S57/D0/U97/C179/A583/T0，D/T 召回为 N/A、误报仍报告；不沿用旧五类阈值。末尾 emoji 的第 916 个续接 token 109 保留。改写格式各有 6 处句末与换行融合的 BPE，三种格式的 token ID 与坐标不能混同；只有同格式的双模型比较共享完全相同的输入。统一 user/去标签图采用原语义对齐指标，不是形式角色 accuracy。本例属于历史诊断，原完整实验仍继续到最终冻结、TEST、外部测试与报告。
+
+## 7. GPU 采样与资源附录
+
+连续监测的原始文件仍在 `runs-v5/campaign/gpu-all-stages.csv` 和 `gpu-all-stages-summary.json`，已跨版本记录至 V7；目录名不代表当前阶段。CSV 从 2026-10-26 14:41:27.523 UTC 开始，比小试扫描开始晚约 253.275 秒。4096-token 与权重加载预检另有完整设备监控记录；PyTorch 峰值计数从权重加载后开始。5 秒设备采样最大值只称采样峰值，包含其他 CUDA 上下文。
+
+`summarize_synthetic_resources.py` 仅处理这些资源元数据。阶段时间窗使用 receipt 的 `stage_marker_snapshot.started_unix + seconds`；V7 小试沿迁移指针回到 V5 的原执行记录，不重复计时。外层执行耗时可包含父进程暂停，不能代替实际阶段时长；没有绝对阶段标记的 dense 窗口如实留空。工具已用真实元数据验收，当前[验收输出](outputs/synthetic-agent-120b-20261026/resource-appendix-validation-v7/resource-appendix.md)显著标为临时快照，正式提取仍为 pending。
+
+Gardening 报告真正完成后，在原机确认推理进程已退出，保存 `/root/role-retraining-20261026/gardening-completion-observation.json`，字段为 `observed_unix`、原 `report-complete.json` 的 `report_complete_sha256` 和 `actual_infer_processes_absent: true`。资源附录以派发前 claim 时间至该观察时间标记保守可能并发范围；其中包含 CPU check/report，不能当作精确推理时长。
+
+整轮结束后，创建 `runs-v5/campaign/gpu-monitor-stop` 并确认监控进程实际退出、CSV 停止更新，再执行：
+
+```bash
+ssh runpod '/root/role-retraining-venv/bin/python /root/role-retraining-20261026/code-v7/summarize_synthetic_resources.py --gardening-completion-observation /root/role-retraining-20261026/gardening-completion-observation.json --monitor-stopped --output-dir /root/role-retraining-20261026/resource-appendix-v7'
+task_gpu_out=/home/wentian/Github/SPAR/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/synthetic-agent-120b-20261026/gpu-resources
+mkdir -p "$task_gpu_out"
+rsync -a runpod:/root/role-retraining-20261026/resource-appendix-v7/ "$task_gpu_out/"
+rsync -a runpod:/workspace/role-retraining-20261026/runs-v5/campaign/gpu-all-stages.csv runpod:/workspace/role-retraining-20261026/runs-v5/campaign/gpu-all-stages-summary.json "$task_gpu_out/"
+```
+
+回传后核对原始 CSV 的 SHA 等于附录 JSON 中的最终整文件 SHA，并一并保存 summary。该附录独立于正式模型小包导出，不能漏收；最终报告同时保留监测起点、采样缺口及并发限制。
