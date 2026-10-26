@@ -188,7 +188,9 @@ V5 pilot→V7 的复用不是重训：640 个源的 raw/normalized 正文 hash�
 
 执行门禁是 `formal/candidates/linear-seed17/complete.json` 与有效 `best.npz`：至少完成 10 epochs，匹配正式 FIT/DEV 提交、标准化器、GPU/分类器源码和训练哈希。恢复用 `last.pt` 不能替代该 NPZ。小试使用已经冻结的 `pilot/best.npz`；第一正式候选不等于七候选最终选定模型。
 
-门禁通过后，在独立 tmux 中执行已准备的启动脚本：
+本轮已部署独立 CPU 一次性等待器 `wait_synthetic_gardening_once.py`，自动等待上述两个文件后派发既有启动脚本。其实际 PID 为 142847，状态见 `/root/role-retraining-20261026/gardening-first-trigger/status.json`，日志见同目录上层的 `gardening-first-waiter.log`；PID 仅为本轮记录，检查存活时须核对 `/proc` 的命令与启动标识。等待器取两份配置和本轮绝对截止的最早值，派发前重验配置及 launcher SHA；固定 tmux 会话和持久排他 claim 防止重复派发，失败后不自动重试，也不删除 claim。小试和首候选的实际合法性仍由 launcher 的 CPU `check` 阶段负责。
+
+正常情况下无需手动启动。若需恢复，先查看等待器状态、claim、`check.log` 和实际 tmux/推理进程，确认现有诊断是否仍在运行；只有确认未派发成功且仍在授权窗口内，才处理一次性标记并在独立 tmux 中执行已准备的启动脚本：
 
 ```bash
 ssh runpod 'tmux new-session -d -s role-gardening-first-20261026 bash /root/role-retraining-20261026/launch-gardening-first.sh'
