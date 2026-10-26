@@ -8,7 +8,7 @@ import tempfile
 import types
 import unittest
 
-spec = importlib.util.spec_from_file_location("gardening_waiter", "/tmp/wait_synthetic_gardening_once.py")
+spec = importlib.util.spec_from_file_location("gardening_waiter", Path(__file__).with_name("wait_synthetic_gardening_once.py"))
 w = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = w
 spec.loader.exec_module(w)
