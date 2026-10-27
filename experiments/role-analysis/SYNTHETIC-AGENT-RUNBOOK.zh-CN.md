@@ -107,6 +107,8 @@ task_stage() {
 
 配置、模型/tokenizer、GPU/classifier 实现、选头顺序、输入或已提交特征分片不同均不能混用。分片为 `features/<phase>/<split>-*/{x,y,structure,source,family,weight,groups}.npy` 与 `complete.json`；只有已校验提交才可跳过。训练 `last.pt` 保存模型、optimizer、RNG、sampler 前后状态、batch cursor、早停与抽样计数。计时变化和追加 TEST 不改变原 FIT/DEV 的稳定 split identity。不能手改 SHA 让不匹配的缓存通过。
 
+最终输入另做一次[实际全记录结构与 mask 审计](outputs/synthetic-agent-120b-20261026/formal-input-mask-audit.json)：25,415 条 FIT/DEV/TEST 输入全部用官方 tokenizer 重分词，并用 token-ID 级消息头解析器核对 S/D 次数、可见调用阶段及每个 target 的纯正文位置和角色。2,742,784 个实际 targets 全部通过，违规为零；输入、冻结清单和数据清单 SHA 保持不变。单消息例外与停在 Q 的合法未完成调用单独处理；整条 CoT 清理的可配对快照核验通过，3 条缺少保存的兄弟快照明确留为无法配对。该 CPU 审计不读取模型预测，不代替文章语义审阅，也不单独证明历史 GPU forward；后者仍依据提取回执与 `use_cache=False` 的绑定实现。聚合结果与原字节[审计脚本](outputs/synthetic-agent-120b-20261026/formal-input-mask-audit.py)已保存，不回传正文或 token ID 序列。
+
 ## 4. 正式冻结后的本地去重哈希导出
 
 本节在本机执行，历史原文始终留在本机。只需要从远端取正式 `freeze.json / best.npz / selection.json` 和冻结前已声明的两份协议文件；保持原字节，不改 JSON 路径或格式。该步骤不需要训练 checkpoint、特征库或 120B 权重。
