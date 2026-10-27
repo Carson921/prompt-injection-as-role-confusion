@@ -93,6 +93,16 @@ task_stage() {
 
 正文缓存目标份额为单消息/单轮/多轮 20%/30%/50%。实际梯度采样也先按这三个 profile 的固定概率分层，再在层内均匀选择完整结构、存在的角色，最后按事件正文 token 的 family 归一权重选行；不叠加类别损失权重。`training.json` 记录有效 options 和协议，candidate 的 `history.json`、`complete.json` 记录实际抽样计数。累计计数涵盖所有已运行 epochs，导出参数取该候选的最佳 epoch。
 
+本轮[真实采样汇总](outputs/synthetic-agent-120b-20261026/formal-sampling-summary.json)保留七候选来源 SHA、全程计数及胜者截至最佳 epoch 的计数。以下三种分母不能混用，顺序均为单消息/单轮/多轮：
+
+| 统计口径 | 单消息 | 单轮 | 多轮 |
+|---|---:|---:|---:|
+| FIT 缓存 1,994,752 行 | 19.9179% | 29.9795% | 50.1027% |
+| FIT family 归一权重质量 | 24.2203% | 35.4363% | 40.3435% |
+| 胜者截至最佳第 30 轮的 59,842,560 次实际抽样 | 20.0022% | 29.9941% | 50.0037% |
+
+胜者实际运行 38 轮，后 8 轮的抽样另外归入全程统计，不计入所导出第 30 轮权重的训练路径。family 权重份额不是梯度份额，也不是类别损失权重；目标 20/30/50 不表示各角色、模板或原始文章等量。
+
 七个固定候选为线性 seed17，以及 MLP128/MLP256 各 seed17/29/43；正式最多 45 epochs、至少 10、patience 8，batch 4096、AdamW lr/wd 均为 `1e-3`、dropout `0.1`、clip 5。候选仅按 DEV 的“六类 P/R≥90% 合格优先→结构等权 macro-F1→最弱 P/R→NLL→固定 ID”选择。Pilot 最多 15 epochs；其 DEV 成绩不作为正式 TEST 成绩。
 
 配置、模型/tokenizer、GPU/classifier 实现、选头顺序、输入或已提交特征分片不同均不能混用。分片为 `features/<phase>/<split>-*/{x,y,structure,source,family,weight,groups}.npy` 与 `complete.json`；只有已校验提交才可跳过。训练 `last.pt` 保存模型、optimizer、RNG、sampler 前后状态、batch cursor、早停与抽样计数。计时变化和追加 TEST 不改变原 FIT/DEV 的稳定 split identity。不能手改 SHA 让不匹配的缓存通过。
