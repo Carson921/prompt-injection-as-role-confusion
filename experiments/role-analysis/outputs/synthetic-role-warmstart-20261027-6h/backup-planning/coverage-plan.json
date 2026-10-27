@@ -1,0 +1,125 @@
+{
+  "format_version": "warmstart-private-backup-coverage-plan-v1",
+  "status": "planning_only_no_transfer_performed",
+  "source_host_alias": "runpod",
+  "source_task_root": "/root/role-warmstart-20261027-6h",
+  "destination_private_root": "/home/wentian/Github/SPAR/runpod-backups/role-warmstart-20261027-6h-final",
+  "destination_mode": "0700",
+  "task_mirror_subdirectory": "task",
+  "include_rule": "Recursively mirror every entry under the task root; one exact top-level exclusion old-features/ only. Future new files are included automatically, not selected by an allowlist.",
+  "exact_exclusions": [
+    "old-features/"
+  ],
+  "required_coverage": [
+    "code/",
+    "data/",
+    "features/",
+    "pilot-features/",
+    "run/",
+    "parent/",
+    "logs/",
+    "setup/",
+    "cache/",
+    "phase-receipts/",
+    "budget.json",
+    "watchdog.json",
+    "campaign-binding.json",
+    "campaign-launch.json",
+    "campaign-status.json",
+    "scale-selection.json",
+    "gpu-resources.csv"
+  ],
+  "required_if_produced": [
+    "gpu-complete.json",
+    "final reports/evaluation/plots exported into task root",
+    "all candidate best.npz and last.pt with training history",
+    "freeze and selection manifests",
+    "prediction arrays and diagnostic sidecars",
+    "partial recovery files if execution stops incomplete"
+  ],
+  "coverage_notes": {
+    "data": "Includes full new source articles, complete input JSONL, fixed50 payload, final semantic audit, both scale manifests and quality exclusions; private only.",
+    "features": "All new FIT/DEV/TEST feature shards, metadata, commit receipts and pilot features; no current growing cache is copied now.",
+    "run": "All three candidate checkpoints, optimizer/resume state, training and best-epoch histories, frozen final probe, validation and TEST arrays/results.",
+    "logs_and_runtime": "All phase logs, driver/watchdog identity, resource CSV, absolute/monotonic budget and stage receipts, setup environment pins and weight verification.",
+    "cache": "Inside-task caches and symlinks included; links preserved without dereferencing paths outside the source tree."
+  },
+  "external_roots_not_mirrored": [
+    {
+      "path": "/root/role-retraining-model",
+      "reason": "Official model weights are large and independently downloadable at pinned revision.",
+      "retain_identity": [
+        "repository/revision",
+        "all15 shard byte sizes and SHA256",
+        "tokenizer/config/chat-template asset hashes",
+        "kernel revision"
+      ],
+      "identity_artifacts_already_in_task": [
+        "setup/weight-verification.json",
+        "run/model_backend.json",
+        "parent/best.npz embedded model_binding"
+      ]
+    },
+    {
+      "path": "/root/role-warmstart-venv",
+      "reason": "Rebuildable environment outside the task root.",
+      "retain_identity": [
+        "Python version and interpreter path",
+        "pip freeze",
+        "Torch/CUDA/Transformers/kernel versions",
+        "driver/GPU identities"
+      ],
+      "identity_artifacts_already_in_task": [
+        "setup/environment.json",
+        "setup/environment-freeze.txt",
+        "setup/requirements-synthetic-agent-4xa40.txt",
+        "run/model_backend.json",
+        "run/preflight.json"
+      ]
+    }
+  ],
+  "retained_dependencies": [
+    {
+      "name": "old-features",
+      "remote_excluded_path": "/root/role-warmstart-20261027-6h/old-features",
+      "local_dependency_root": "/home/wentian/Github/SPAR/runpod-backups/role-retraining-20261026-20261027/workspace-task/runs-v7/formal/features/formal",
+      "feature_manifest_sha256": "1401482dd7035e001eb699a49a75b6590709c9920c56a8a52c20b1894517041b",
+      "prior_backup_integrity_report_sha256": "b176fd33b493c20db0a4983cd7d0a6495d9b978703d704bb3365aa002ffa181c",
+      "prior_backup_SHA256SUMS_sha256": "efd935f17bcd56f39a2400b511e47447c52dca4fbcdae7815cc97e6fa569c0b4",
+      "new_stage_validation_artifact": "cache-import-validation/remote-cache-stage-validation.json",
+      "restoration_requirement": "Retain the existing verified local dependency; restore its exact tree at old-features when resuming. Do not treat the new backup as standalone without this dependency."
+    },
+    {
+      "name": "cached-AgentDojo57",
+      "local_dependency_root": "/home/wentian/Github/SPAR/delimeter-token/results/ChatInject/agentdojo_role_probe_gptoss120b/full57_no_payload_first_occurrence_probe_v7_20261027",
+      "result_manifest_sha256": "535fd7d918d905b99f35ffdd22f8825a2575e734dc74201cb08e1eca32927eec",
+      "requirement": "Keep the original immutable local cache and sealed implementation; no need to send it to RunPod or duplicate it as a new remote payload."
+    },
+    {
+      "name": "CPU-preparation-history",
+      "local_dependency_root": "/home/wentian/Github/SPAR/runpod-backups/role-warmstart-20261027-6h-preparation",
+      "requirement": "Keep failed source versions, collector snapshots, supplementary-source pool and individual review proofs locally; data-v5 and the new task mirror contain the active inputs."
+    }
+  ],
+  "local_new_outputs": {
+    "requirement": "Archive the final local experiment output tree and any private new AgentDojo probability arrays once complete, alongside the task mirror; these may never have existed remotely.",
+    "repository_output_root": "/home/wentian/Github/SPAR/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/synthetic-role-warmstart-20261027-6h"
+  },
+  "quiescence_gate": [
+    "Driver and CUDA workers terminal by PID/start identity; a zombie state is terminal, not an active worker.",
+    "Resource monitor and watchdog finish their final writes; no local or remote exporter is still mutating files to be inventoried.",
+    "Source files are inventoried only after the final outputs are exported. If source changes during transfer, refresh affected entries and reverify."
+  ],
+  "transfer_template": "rsync -az --no-owner --no-group --links --partial --partial-dir=.rsync-partial --exclude='/old-features/***' runpod:/root/role-warmstart-20261027-6h/ /home/wentian/Github/SPAR/runpod-backups/role-warmstart-20261027-6h-final/task/",
+  "safety_of_transfer": "No --delete, no remote deletion or power operation, no following external symlink targets, no Git publication of the private mirror.",
+  "acceptance_sequence": [
+    "Record exact source inventory with type, size, mode, mtime_ns, link target and independent SHA256 of every included regular file.",
+    "Run transfer, preserve exit status and full transfer log, and reconcile complete inventory rather than only checking command exit.",
+    "Hash every local mirrored regular file and compare to the independent source inventory; verify every symlink target and reject unexplained extra/missing files.",
+    "Verify produced feature shard commits, checkpoint/freeze identities and recorded metadata manifests as additional semantic checks.",
+    "Recheck source type/size/mtime/link stability after copy; any mutation invalidates the affected entry until refreshed.",
+    "Verify retained dependency manifests/proofs still match the recorded hashes; report dependency-based completeness explicitly.",
+    "Write local SHA256SUMS, source/local manifests, integrity report, coverage report and backup README; flush writes before declaring backup verified."
+  ],
+  "current_action": "Planning/inventory only; active feature extraction and new model scores were not copied or inspected."
+}
