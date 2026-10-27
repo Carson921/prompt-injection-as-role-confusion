@@ -1,6 +1,6 @@
 # GPT-OSS-120B 六角色分类器重训计划
 
-更新日期：2026-10-26。状态：正在执行。已通过 SSH 别名 `runpod` 连接 4×A40，完成官方权重 SHA256 校验、4096-token 全头统计预检和七候选小试。最终 V7 全配额来源与固定样本审计通过，小试输入及产物等价核验和迁移完成；正式七候选训练及固定 DEV 选模已完成，最终模型 `mlp128-seed17` 已冻结。正式 TEST 特征提取进行中，冻结后的外部去重哈希门禁已通过，完整测试报告仍待完成。可用 GPU 时间上限为 24 小时，截止纽约时间 2026-10-27 09:19。运行记录见[执行状态](outputs/synthetic-agent-120b-20261026/execution-status.json)、[正式冻结与去重门禁](outputs/synthetic-agent-120b-20261026/formal-freeze-and-external-hash-gate.json)及[数据审计说明](synthetic-agent-data-audit.md)。
+更新日期：2026-10-27。状态：实验已完成。已通过 SSH 别名 `runpod` 在 4×A40 上完成官方权重校验、4096-token 全头预检、小试、完整 V7 正式七候选训练、固定 DEV 冻结、合成 TEST、冻结后 OASST/ToxicChat 各128条评估，以及图表和报告。最终模型为 `mlp128-seed17`（最佳epoch30）；合成 TEST macro-F1 98.8538%，六类汇总P/R均达标，单消息S/D等局部分组仍较弱。外部仅原始U/A的macro-F1为99.2878%。计算与报告于2026-10-27 04:23:06 UTC完成，早于24小时截止；本轮GPU任务、截止监督器和监测已结束。最终产物、独立复算、范围限制及资源记录见[最终结果](outputs/synthetic-agent-120b-20261026/README.zh-CN.md)与[逐项完成审计](outputs/synthetic-agent-120b-20261026/COMPLETION-AUDIT.zh-CN.md)。本文件以下保留原定实验协议，历史24小时授权不自动延长或续期。
 
 本轮从冻结的 GPT-OSS-120B MXFP4 模型读取内部特征，重新训练一个六角色分类器。训练和验证正文只使用经过过滤的 C4、Dolma3 非对话文章，覆盖独立单消息、单个用户轮次和多个用户轮次。**资源按同一台服务器上的 4 张 A40 准备**；模型已经位于远端 `/workspace`，通过 SSH 操作，不需要预先开发模型 API。
 

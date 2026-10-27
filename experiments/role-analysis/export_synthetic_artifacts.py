@@ -589,9 +589,12 @@ channel label and does not assert genuine reasoning semantics.
 
 Run `sha256sum -c SHA256SUMS` from this directory to verify the package. The
 `bundle-manifest.json` records original remote paths, exact file hashes, protocol
-bindings, and remote-retained large artifacts. Activation arrays, original
-histories, raw inputs, historical conversation bodies, and full probability
-arrays are intentionally retained remotely.
+bindings, and remote-retained large artifacts. Activation arrays, original epoch
+histories, raw synthetic/external inputs, and full probability arrays remain on
+the run host. Historical fitting and user-query CSV files remain on the original
+local host; those CSV files were not uploaded. Their de-duplication contribution
+on the run host consists of bound hashes and public source IDs. The separately
+authorized public gardening diagnostic is archived outside this package.
 
 The seven `curve-scalars.json` files are **derived summaries, not raw histories**.
 They preserve every epoch's scalar losses/DEV criteria, class P/R/F1, sampling

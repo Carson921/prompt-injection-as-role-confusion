@@ -2,6 +2,8 @@
 
 本手册对应本轮最终 V7：`code-v7 / data-v7 / runs-v7`，通过 `ssh runpod` 操作同机 4×A40。实验定义见[重训计划](RETRAINING-PLAN-120B.zh-CN.md)，数据范围及审计限制见[审计说明](synthetic-agent-data-audit.md)，当前进度见[执行状态](outputs/synthetic-agent-120b-20261026/execution-status.json)。
 
+本轮计算与报告已于2026-10-27 04:23:06 UTC正常完成，最终交付入口见[结果说明](outputs/synthetic-agent-120b-20261026/README.zh-CN.md)。以下命令保留为本轮历史运行／同参数恢复记录，不能将完成状态当作重新启动许可。
+
 本轮授权窗口为 **2026-10-26 13:19:17 UTC 至 2026-10-27 13:19:17 UTC**，即纽约时间 **10 月 27 日 09:19:17 截止**。以下恢复命令仅适用于该窗口剩余时间；静态文档不产生未来 GPU 运行授权。过期后保留产物并只读归档，新一轮须另行确认资源、时间和独立目录。不要修改 deadline 延长本轮。
 
 ## 1. 远端路径与整轮恢复
@@ -210,8 +212,8 @@ rsync -az --include='*/' --include='*.png' --include='*.pdf' --include='index.js
 整轮完成后，推荐使用已验证的完整小包导出器，代替逐项手动取文件。它检查真实 campaign 完成、冻结字节、7 候选、TEST/外部 2000 次 source-cluster CI、20 项原生图和 15 项 dense 图、位置诊断及报告；未完成时拒绝导出。以下在本机执行：
 
 ```bash
-ssh runpod '/root/role-retraining-venv/bin/python /root/role-retraining-20261026/code-v7/export_synthetic_artifacts.py --run-dir /workspace/role-retraining-20261026/runs-v7/formal --data-dir /workspace/role-retraining-20261026/data-v7 --code-dir /root/role-retraining-20261026/code-v7 --output-dir /root/role-retraining-20261026/delivery-v7 --requirements-file /root/role-retraining-20261026/code-v7/requirements-synthetic-agent-4xa40.txt --environment-file /workspace/role-retraining-20261026/environment-freeze.txt'
-rsync -a runpod:/root/role-retraining-20261026/delivery-v7/ "$task_out/"
+ssh runpod '/root/role-retraining-venv/bin/python /root/role-retraining-20261026/code-v7/export_synthetic_artifacts.py --run-dir /workspace/role-retraining-20261026/runs-v7/formal --data-dir /workspace/role-retraining-20261026/data-v7 --code-dir /root/role-retraining-20261026/code-v7 --output-dir /root/role-retraining-20261026/delivery-v7-final --requirements-file /root/role-retraining-20261026/code-v7/requirements-synthetic-agent-4xa40.txt --environment-file /workspace/role-retraining-20261026/environment-freeze.txt'
+rsync -a runpod:/root/role-retraining-20261026/delivery-v7-final/ "$task_out/"
 cd "$task_out"
 sha256sum -c SHA256SUMS
 ```
@@ -244,7 +246,7 @@ ssh runpod 'tmux new-session -d -s role-gardening-first-20261026 bash /root/role
 
 连续监测的原始文件仍在 `runs-v5/campaign/gpu-all-stages.csv` 和 `gpu-all-stages-summary.json`，已跨版本记录至 V7；目录名不代表当前阶段。CSV 从 2026-10-26 14:41:27.523 UTC 开始，比小试扫描开始晚约 253.275 秒。4096-token 与权重加载预检另有完整设备监控记录；PyTorch 峰值计数从权重加载后开始。5 秒设备采样最大值只称采样峰值，包含其他 CUDA 上下文。
 
-`summarize_synthetic_resources.py` 仅处理这些资源元数据。阶段时间窗使用 receipt 的 `stage_marker_snapshot.started_unix + seconds`；V7 小试沿迁移指针回到 V5 的原执行记录，不重复计时。外层执行耗时可包含父进程暂停，不能代替实际阶段时长；没有绝对阶段标记的 dense 窗口如实留空。工具已用真实元数据验收，当前[验收输出](outputs/synthetic-agent-120b-20261026/resource-appendix-validation-v7/resource-appendix.md)显著标为临时快照，正式提取仍为 pending。
+`summarize_synthetic_resources.py` 仅处理这些资源元数据。阶段时间窗使用 receipt 的 `stage_marker_snapshot.started_unix + seconds`；V7 小试沿迁移指针回到 V5 的原执行记录，不重复计时。外层执行耗时可包含父进程暂停，不能代替实际阶段时长；没有绝对阶段标记的 dense 窗口如实留空。原[验收输出](outputs/synthetic-agent-120b-20261026/resource-appendix-validation-v7/resource-appendix.md)保留其临时快照含义；[最终资源附录](outputs/synthetic-agent-120b-20261026/gpu-resources/resource-appendix.md)已基于停止后的整份CSV生成，原始CSV、summary及完成／停止证明均已回传核对SHA。
 
 Gardening 报告真正完成后，在原机确认推理进程已退出，保存 `/root/role-retraining-20261026/gardening-completion-observation.json`，字段为 `observed_unix`、原 `report-complete.json` 的 `report_complete_sha256` 和 `actual_infer_processes_absent: true`。资源附录以派发前 claim 时间至该观察时间标记保守可能并发范围；其中包含 CPU check/report，不能当作精确推理时长。
 
