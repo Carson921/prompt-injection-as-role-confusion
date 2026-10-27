@@ -153,6 +153,8 @@ PY
 
 导出还校验 protocol/index、冻结 probe/selection、非 engineering 模型、声明早于冻结及 exporter 实现 SHA；局部路径 pointer 无需相同。`legacy-hashes.json` 只含不可逆摘要及计数/布尔审计，绑定完整 `freeze.json` SHA。服务器严格验证该产物后才下载新的 OASST/ToxicChat 各 128 条，不能回退读取历史 CSV。外部正式指标仅评分原始 U/A，后加 S/D 事实段落仅作上下文；缺 C/T 的召回为 N/A，误报仍报告。
 
+本轮在正式 TEST 提取期间已完成独立 CPU 外部准备，实际运行于 2026-10-27 02:28:25.957–02:28:44.946 UTC，耗时 18.988 秒。固定启动脚本及[完成证明](outputs/synthetic-agent-120b-20261026/parallel-external-prepare-v7.json)记录源版本、输入/清单 SHA，以及冻结模型、协议、配置、选择结果和主状态文件前后不变的校验。它直接调用已固定实现的 `prepare_external`，仅将下载缓存位置放在普通文件系统 `/root/role-retraining-cache/external-downloads`，不改冻结配置或任何采样参数；GPU 不参与。独立 timeout 与绝对截止计时均生效，工作进程已正常退出。产出 256 条完整输入，正文计分 token 为 U 12,438、A 58,428；原始对话和完整历史摘要清单保留在服务器，不回传公开仓库。主 campaign 在 TEST 后校验并采用已有清单，不能因采用阶段显示零秒而把这次实际 CPU 耗时记为零。
+
 ## 5. 六类消费端与回传
 
 在远端已配置环境中可直接消费已有 FP16 特征，无需加载 120B：
@@ -212,7 +214,7 @@ V5 pilot→V7 的复用不是重训：640 个源的 raw/normalized 正文 hash�
 
 执行门禁是 `formal/candidates/linear-seed17/complete.json` 与有效 `best.npz`：至少完成 10 epochs，匹配正式 FIT/DEV 提交、标准化器、GPU/分类器源码和训练哈希。恢复用 `last.pt` 不能替代该 NPZ。小试使用已经冻结的 `pilot/best.npz`；第一正式候选不等于七候选最终选定模型。
 
-本轮已部署独立 CPU 一次性等待器 `wait_synthetic_gardening_once.py`，自动等待上述两个文件后派发既有启动脚本。其实际 PID 为 142847，状态见 `/root/role-retraining-20261026/gardening-first-trigger/status.json`，日志见同目录上层的 `gardening-first-waiter.log`；PID 仅为本轮记录，检查存活时须核对 `/proc` 的命令与启动标识。等待器取两份配置和本轮绝对截止的最早值，派发前重验配置及 launcher SHA；固定 tmux 会话和持久排他 claim 防止重复派发，失败后不自动重试，也不删除 claim。小试和首候选的实际合法性仍由 launcher 的 CPU `check` 阶段负责。
+本轮独立 CPU 一次性等待器 `wait_synthetic_gardening_once.py` 已自动派发并正常退出；原 PID 142847 仅为历史记录。诊断已完成，7 对 PNG/PDF 和模型绑定已回传核验，原生对比图已在聊天中展示。状态见 `/root/role-retraining-20261026/gardening-first-trigger/status.json`，日志见同目录上层的 `gardening-first-waiter.log`；检查进程时须核对 `/proc` 的命令与启动标识。等待器取两份配置和本轮绝对截止的最早值，派发前重验配置及 launcher SHA；固定 tmux 会话和持久排他 claim 防止重复派发，失败后不自动重试，也不删除 claim。小试和首候选的实际合法性仍由 launcher 的 CPU `check` 阶段负责。
 
 正常情况下无需手动启动。若需恢复，先查看等待器状态、claim、`check.log` 和实际 tmux/推理进程，确认现有诊断是否仍在运行；只有确认未派发成功且仍在授权窗口内，才处理一次性标记并在独立 tmux 中执行已准备的启动脚本：
 
