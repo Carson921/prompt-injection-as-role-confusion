@@ -108,11 +108,22 @@ def model_binding(model_dir):
     return result
 
 
+def a40_device_map(device_count):
+    """Contiguous equal layer partitions for the supported A40 layouts."""
+    require(device_count in (3, 4), "Only three- and four-A40 layouts are supported")
+    result = {"model.embed_tokens": 0, "model.rotary_emb": 0,
+              "model.norm": device_count - 1, "lm_head": device_count - 1}
+    result.update({f"model.layers.{i}": i * device_count // LAYERS for i in range(LAYERS)})
+    return result
+
+
 def load_model(model_dir, run_dir, devices="0,1,2,3", cache_dir=None):
-    """Load all weights on four A40 GPUs; never permit CPU weight offload."""
+    """Load all weights on three or four A40s without CPU weight offload."""
     if isinstance(devices, (list, tuple)):
         devices = ",".join(map(str, devices))
     os.environ["CUDA_VISIBLE_DEVICES"] = str(devices)
+    requested_count = len(str(devices).split(","))
+    require(requested_count in (3, 4), "Exactly three or four devices must be requested")
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     if cache_dir:
@@ -121,8 +132,8 @@ def load_model(model_dir, run_dir, devices="0,1,2,3", cache_dir=None):
     from transformers import AutoModelForCausalLM, Mxfp4Config
     from transformers.integrations import hub_kernels
     from transformers.quantizers.quantizer_mxfp4 import Mxfp4HfQuantizer
-    require(torch.cuda.device_count() == 4, "Exactly four CUDA devices must be visible")
-    require(all("A40" in torch.cuda.get_device_name(i) for i in range(4)), "This protocol requires four A40s")
+    require(torch.cuda.device_count() == requested_count, "Visible device count differs from the requested A40 layout")
+    require(all("A40" in torch.cuda.get_device_name(i) for i in range(requested_count)), "This protocol requires A40s")
     original_get = getattr(hub_kernels, "_synthetic_original_get_kernel", hub_kernels.get_kernel)
     hub_kernels._synthetic_original_get_kernel = original_get
 
@@ -140,9 +151,7 @@ def load_model(model_dir, run_dir, devices="0,1,2,3", cache_dir=None):
         require(not self.quantization_config.dequantize, "Refusing silent BF16 dequantization of MXFP4 weights")
 
     Mxfp4HfQuantizer.validate_environment = strict
-    device_map = {"model.embed_tokens": 0, "model.rotary_emb": 0,
-                  "model.norm": 3, "lm_head": 3}
-    device_map.update({f"model.layers.{i}": i // 9 for i in range(LAYERS)})
+    device_map = a40_device_map(requested_count)
     started = time.monotonic()
     print(json.dumps({"stage": "loading_model", "model_dir": str(model_dir)}), flush=True)
     model = AutoModelForCausalLM.from_pretrained(
@@ -177,7 +186,7 @@ def load_model(model_dir, run_dir, devices="0,1,2,3", cache_dir=None):
         "gpu_transfer": "synchronous CPU staging between distinct CUDA devices; weights remain on GPUs",
         "torch": torch.__version__, "cuda": torch.version.cuda,
         "transformers": importlib.metadata.version("transformers"),
-        "gpus": [torch.cuda.get_device_name(i) for i in range(4)],
+        "gpus": [torch.cuda.get_device_name(i) for i in range(requested_count)],
         "load_seconds": time.monotonic() - started,
     }
     verification_path = Path(model_dir) / "weight-verification.json"
@@ -192,9 +201,12 @@ def load_model(model_dir, run_dir, devices="0,1,2,3", cache_dir=None):
 
 class MemoryMonitor:
     """Device-wide memory includes CUDA contexts outside this process."""
+    def __init__(self, device_count=4):
+        self.device_count = device_count
+
     def __enter__(self):
         self.stop = threading.Event()
-        self.peak = [0] * 4
+        self.peak = [0] * self.device_count
         self.errors = []
 
         def poll():
@@ -204,8 +216,10 @@ class MemoryMonitor:
                         "nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
                         text=True, timeout=10)
                     vals = [int(x.strip()) for x in raw.strip().splitlines()]
-                    if len(vals) == 4:
+                    if len(vals) == self.device_count:
                         self.peak = [max(a, b) for a, b in zip(self.peak, vals)]
+                    else:
+                        raise RuntimeError(f"Memory telemetry returned {len(vals)} devices; expected {self.device_count}")
                 except Exception as error:
                     self.errors.append(str(error))
                 self.stop.wait(.25)
