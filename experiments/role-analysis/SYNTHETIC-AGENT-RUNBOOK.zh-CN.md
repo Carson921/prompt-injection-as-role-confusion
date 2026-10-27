@@ -121,9 +121,33 @@ proof = export_legacy_hashes({}, bundle/'data', bundle/'formal',
     tokenizer=tokenizer)
 print(proof['sha256'])
 PY
-rsync -az "$task_bundle/data/external/legacy-hashes.json" \
-  runpod:/workspace/role-retraining-20261026/data-v7/external/
+rsync -az --no-times "$task_bundle/data/external/legacy-hashes.json" \
+  runpod:/root/role-retraining-20261026/legacy-hashes-v7.json
+ssh runpod /root/role-retraining-venv/bin/python - <<'PY'
+import hashlib, os
+from pathlib import Path
+src = Path('/root/role-retraining-20261026/legacy-hashes-v7.json')
+dst = Path('/workspace/role-retraining-20261026/data-v7/external/legacy-hashes.json')
+pending = dst.with_name('legacy-hashes.pending-v7.json')
+payload = src.read_bytes()
+digest = hashlib.sha256(payload).hexdigest()
+if dst.exists():
+    assert hashlib.sha256(dst.read_bytes()).hexdigest() == digest, 'Existing ledger differs; inspect before replacing'
+else:
+    if pending.exists():
+        assert pending.read_bytes() == payload, 'Inspect prior partial copy before continuing'
+    else:
+        with pending.open('wb') as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+    os.replace(pending, dst)
+assert hashlib.sha256(dst.read_bytes()).hexdigest() == digest
+print(digest)
+PY
 ```
+
+本轮持久 FUSE 盘拒绝了 rsync 的 `mkstemp`，因此采用普通 `/root` 暂存、内容写入和原子替换；保持原字节，不使用 `copy2/copystat/utime`。本轮清单 SHA 为 `7a672d743bc0028078ed6e98c8174e76f4af2c0587bd115decb7e1fad36263ef`，已经通过服务器 `_load_legacy_hashes` 的严格格式、冻结绑定与审计校验。公开仓库只记录交付哈希和计数，完整历史摘要清单留在本机与运行服务器。
 
 本机 `/tmp/role-retraining-tokenizer` 使用与服务器一致的官方 tokenizer 小文件（`tokenizer.json`、`tokenizer_config.json`、`special_tokens_map.json`、`config.json`）。本地导出强校验三份 CSV 的原字节 SHA 与协议一致：`data/conversations/gptoss-20b.csv`、`data/conversations/gptoss-20b-raw.csv`、`outputs/local-gptoss20b/user_queries.csv`，均相对 `history_root_override`。它们不向服务器上传。
 
