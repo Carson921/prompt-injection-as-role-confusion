@@ -465,6 +465,25 @@ def _restore_rng(state):
         torch.cuda.set_rng_state_all([v.cpu() for v in state["torch_cuda"]])
 
 
+def _feature_batch(bank, indices, device):
+    """Read identical raw FP32 rows from an optional per-run CUDA cache."""
+    import torch
+    if hasattr(bank, "device_features"):
+        index = torch.as_tensor(indices, dtype=torch.long, device=device)
+        return bank.device_features.index_select(0, index)
+    return torch.from_numpy(bank.read(indices)).to(device)
+
+
+def _cache_features_on_device(bank, device, chunk_size=8192):
+    import torch
+    if not str(device).startswith("cuda"):
+        raise ValueError("Feature preloading requires a CUDA device")
+    bank.device_features = torch.empty((len(bank), 1024), dtype=torch.float32, device=device)
+    for start in range(0, len(bank), chunk_size):
+        stop = min(start + chunk_size, len(bank))
+        bank.device_features[start:stop] = torch.from_numpy(bank.read(np.arange(start, stop))).to(device)
+
+
 def _predict(net, bank, mean, scale, *, device, batch_size=8192):
     import torch
     net.eval()
@@ -474,7 +493,7 @@ def _predict(net, bank, mean, scale, *, device, batch_size=8192):
     with torch.inference_mode():
         for start in range(0, len(bank), batch_size):
             stop = min(start + batch_size, len(bank))
-            x = torch.from_numpy(bank.read(np.arange(start, stop))).to(device)
+            x = _feature_batch(bank, np.arange(start, stop), device)
             result[start:stop] = net((x - mean_t) / scale_t).softmax(dim=1).cpu().numpy()
     return result
 
@@ -632,6 +651,9 @@ def train_candidates(feature_dir, run_dir, config, resume=False):
         raise ValueError("Invalid FIT standardizer")
     mean_t = torch.as_tensor(mean, device=device)
     scale_t = torch.as_tensor(scale, device=device)
+    if options.get("cache_features_on_gpu", False):
+        _cache_features_on_device(fit, device)
+        _cache_features_on_device(dev, device)
     validation = root / "resume-validation.json"
     if not validation.exists():
         validate_resume_and_export(root, device=device)
@@ -725,7 +747,7 @@ def train_candidates(feature_dir, run_dir, config, resume=False):
             loss_sum, seen = 0.0, 0
             for batch in range(batch_cursor, math.ceil(count / batch_size)):
                 indices = drawn[batch * batch_size:(batch + 1) * batch_size]
-                x = torch.from_numpy(fit.read(indices)).to(device)
+                x = _feature_batch(fit, indices, device)
                 y = torch.from_numpy(fit.y[indices]).to(device)
                 optimizer.zero_grad(set_to_none=True)
                 logits = net((x - mean_t) / scale_t)
