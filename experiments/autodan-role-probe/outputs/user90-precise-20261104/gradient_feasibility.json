@@ -1,0 +1,361 @@
+{
+  "schema": "native-mxfp4-input-gradient-feasibility-v1",
+  "created_utc": "2026-11-05T04:20:52.736275+00:00",
+  "scope": "Read-only local installed Python/kernel sources, model metadata and safetensors headers; no model or weight tensors loaded, no GPU execution, API, downloads, package installation, or proposal implementation.",
+  "practical_verdict": {
+    "correct_end_to_end_input_embedding_gradient_in_current_native_backend": "no",
+    "architectural_support_for_frozen_weight_input_gradients": "yes",
+    "stock_gradient_checkpointing_compatible_with_current_capture_attention": "no",
+    "full_bf16_resident_model_on_two_80GB_H100": "no",
+    "future_exact_packed_weight_backward_without_full_dequantization": "unknown; no such backward is exposed by the inspected deployed expert path",
+    "confidence": "Source-level conclusion; not a GPU backward smoke test."
+  },
+  "runtime_versions": {
+    "torch": "2.9.1",
+    "transformers": "5.3.0",
+    "kernels": "0.11.7",
+    "triton": "3.5.1",
+    "accelerate": "1.12.0"
+  },
+  "native_kernel_revision": "9fbc1b48e710ac8abf18ea2650ee690d52dc3859",
+  "findings": [
+    {
+      "id": "activation_api",
+      "assessment": "supported in model architecture",
+      "evidence": [
+        "modeling_gpt_oss: inputs_embeds accepted and assigned to hidden_states; ordinary Torch dense expert implementation uses matmul, sigmoid and index_add_",
+        "native_capture: all parameters frozen via requires_grad_(False)"
+      ],
+      "implication": "Freezing weights and eval mode alone do not prevent derivatives with respect to a requires_grad input embedding leaf. Integer token IDs themselves cannot receive such gradients. Top-k expert selection is piecewise differentiable through selected routing values, not through discrete route changes."
+    },
+    {
+      "id": "expert_gradient_break",
+      "assessment": "blocking for exact deployed native activation gradient",
+      "evidence": [
+        "mxfp4_integration: Mxfp4GptOssExperts.forward calls matmul_ogs twice; first includes fused raw swiglu_fn and second consumes routing gate scales",
+        "kernel_matmul: apply_allocation creates torch.empty output/scratchpad without requires_grad; ordinary Python matmul_ogs launches raw Triton kernels writing those buffers; postprocessing is another raw kernel and the returned buffer is only squeezed/viewed",
+        "No autograd.Function, backward, register_autograd or requires_grad appears in the complete pinned matmul_ogs Python source; package loader simply imports it"
+      ],
+      "implication": "The returned expert output has no tracked value dependency on hidden_states or gate_scal in this path. Residual/attention branches may still yield nonzero input gradients while omitting MoE Jacobian contributions. A successful backward or nonzero gradient would not establish correctness.",
+      "evidence_type": "source inspection and autograd graph inference, not runtime measurement"
+    },
+    {
+      "id": "some_kernel_backwards_exist",
+      "assessment": "do not generalize the blocker to every Triton operation",
+      "evidence": [
+        "kernel_topk: TopK.autograd.Function has backward",
+        "kernel_routing: SortTokens.autograd.Function has backward",
+        "kernel_swiglu: standalone SwiGLU autograd.Function has forward only; native expert fusion uses raw swiglu_fn instead"
+      ],
+      "implication": "Existing routing backwards do not repair the untracked expert matmul/fused activation path. Standalone SwiGLU missing backward is supplementary, not the direct deployed call."
+    },
+    {
+      "id": "quantizer_warning",
+      "assessment": "corroborating but insufficient on its own",
+      "evidence": [
+        "mxfp4_quantizer.is_trainable returns False and recommends dequantize=True for training"
+      ],
+      "implication": "Weight-training support and frozen-weight activation gradients are distinct. The concrete raw expert output path, not merely is_trainable=False, supports the negative exact-gradient conclusion."
+    },
+    {
+      "id": "capture_and_probe_disconnect",
+      "assessment": "current scorer is intentionally inference-only",
+      "evidence": [
+        "native_capture.forward_capture wraps torch.inference_mode()",
+        "native_capture.Capture.hook detaches pre-o_proj activations and moves selected rows to CPU",
+        "native_scorer casts BF16 to FP16 then NumPy; standardization/probe/softmax run under torch.inference_mode()"
+      ],
+      "implication": "Current scorer cannot propagate the goal probability objective to input embeddings even if an expert backward were supplied. A separately verified differentiable capture would be necessary; no existing scorer was changed."
+    },
+    {
+      "id": "attention_and_checkpointing",
+      "assessment": "ordinary attention equations support autograd in eval in principle, but checkpoint activation conflicts with current guard",
+      "evidence": [
+        "native_attention uses ordinary Torch matmul/softmax/cat and slice assignment with no detach/no_grad, but requires not module.training and dropout == 0",
+        "checkpointing_layer dispatches checkpoint only if gradient_checkpointing and training",
+        "modeling_gpt_oss decoder inherits GradientCheckpointingLayer; supports_gradient_checkpointing=True"
+      ],
+      "implication": "Enabling gradient checkpointing while keeping eval leaves the stock checkpoint branch inactive; train() triggers the installed attention assertion. A new manual/eval checkpoint path would need validation and cannot manufacture missing expert backwards."
+    },
+    {
+      "id": "dense_fallback",
+      "assessment": "architecturally differentiable, not a resident two-H100 solution",
+      "evidence": [
+        "modeling_gpt_oss.GptOssExperts uses floating expert matrices and regular Torch operations",
+        "kernel_matmul.matmul_ogs_torch reference asserts w.dtype.itemsize > 1, excluding directly consuming packed uint8 FP4 storage",
+        "mxfp4_integration.dequantize converts complete expert tensors and installs floating nn.Parameters"
+      ],
+      "implication": "The inspected supported dense/dequantized path materializes expert weights; it cannot fit this full model resident on two 80GB H100s. CPU/offloaded or custom streamed/packed backwards are unverified alternatives, not capabilities established here."
+    }
+  ],
+  "memory_estimates": {
+    "kind": "metadata/header arithmetic only; excludes allocator fragmentation, swizzled-layout padding, temporary conversions and runtime peaks",
+    "device_budget": "2 x H100 80GB; individual per-device placement also constrains feasibility",
+    "model_config": {
+      "hidden_size": 2880,
+      "intermediate_size": 2880,
+      "num_hidden_layers": 36,
+      "num_local_experts": 128,
+      "num_experts_per_tok": 4,
+      "num_attention_heads": 64,
+      "num_key_value_heads": 8,
+      "head_dim": 64,
+      "vocab_size": 201088,
+      "sliding_window": 128
+    },
+    "checkpoint_tensor_bytes_by_dtype": {
+      "BF16": 4334742144,
+      "U8": 60914073600
+    },
+    "checkpoint_tensor_bytes_total": 65248815744,
+    "checkpoint_tensor_GiB_total": 60.76769506931305,
+    "checkpoint_tensors_count": 687,
+    "dense_expert_matrix_parameters": 114661785600,
+    "dense_expert_matrix_bf16_bytes": 229323571200,
+    "dense_expert_matrix_bf16_GiB": 213.57421875,
+    "dense_total_bf16_estimated_bytes": 233658313344,
+    "dense_total_bf16_estimated_GiB": 217.6112619638443,
+    "activation_examples": [
+      {
+        "full_input_tokens": 4096,
+        "embedding_leaf_bf16_MiB": 22.5,
+        "embedding_gradient_fp32_MiB": 45.0,
+        "attention_probability_bf16_GiB_per_layer": 2.0,
+        "one_gate_up_activation_bf16_GiB_per_layer": 0.17578125
+      },
+      {
+        "full_input_tokens": 8192,
+        "embedding_leaf_bf16_MiB": 45.0,
+        "embedding_gradient_fp32_MiB": 90.0,
+        "attention_probability_bf16_GiB_per_layer": 8.0,
+        "one_gate_up_activation_bf16_GiB_per_layer": 0.3515625
+      },
+      {
+        "full_input_tokens": 16384,
+        "embedding_leaf_bf16_MiB": 90.0,
+        "embedding_gradient_fp32_MiB": 180.0,
+        "attention_probability_bf16_GiB_per_layer": 32.0,
+        "one_gate_up_activation_bf16_GiB_per_layer": 0.703125
+      },
+      {
+        "full_input_tokens": 20000,
+        "embedding_leaf_bf16_MiB": 109.86328125,
+        "embedding_gradient_fp32_MiB": 219.7265625,
+        "attention_probability_bf16_GiB_per_layer": 47.6837158203125,
+        "one_gate_up_activation_bf16_GiB_per_layer": 0.858306884765625
+      }
+    ],
+    "activation_notes": [
+      "Full input length includes original context, every rendered payload occurrence, and immutable goal; wrapper length alone understates N.",
+      "Probe has 16 heads (1024 features) spanning layers 14,16,18,19,20,30,31,32,34,35, so objective gradients require nearly the full depth.",
+      "Attention probability estimates are one BF16 64-head N-by-N tensor per layer, not complete backward peak. The installed query-tiled implementation limits inference live buffers but autograd would retain tile intermediates totaling quadratic size; its sliding-window mask still evaluates dense query-by-key tensors.",
+      "Frozen parameters avoid weight gradients/optimizer state, but backward still needs input-dependent activations and expert activation Jacobians. The one gate_up example is only one intermediate of several.",
+      "Six cases could in principle be differentiated sequentially and accumulated with exact equal 1/6 scaling rather than retaining six graphs; this does not fix the backend blocker and is not implemented.",
+      "Checkpointing can reduce saved inter-layer activations but not the model weight footprint, an unsupported backward, or all per-layer temporary working memory."
+    ]
+  },
+  "objective_constraint": "Any future validated gradient route must preserve complete native context, complete first-occurrence immutable goal-token probabilities at user role index 2, and equal averaging across all six cases. Position heuristics or a partially detached graph must not be called the native objective gradient.",
+  "checks": {
+    "kernel_matmul_literal_scan": {
+      "autograd.Function": 0,
+      "register_autograd": 0,
+      "def backward": 0,
+      "requires_grad": 0,
+      "torch.empty": 2
+    },
+    "model_index_total_matches_header_bytes": true,
+    "independent_reviewer": "/root/linear_spans independently confirmed matmul backward absence, existing routing backwards, checkpoint training guard, and capture inference/detach"
+  },
+  "source_evidence": {
+    "native_capture": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/agentdojo-first-tool/collect.py",
+      "sha256": "6c99845be775cf31944b383aab1ee8b829a4495a620b17c01410b9693a8a3883",
+      "line_ranges": [
+        [
+          60,
+          78
+        ],
+        [
+          87,
+          102
+        ],
+        [
+          124,
+          157
+        ],
+        [
+          160,
+          170
+        ]
+      ]
+    },
+    "native_attention": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/agentdojo-first-tool/attention.py",
+      "sha256": "a45021e9c427560273bae3c2072ea293796d74fcc427cecf5a738a9518b1c080",
+      "line_ranges": [
+        [
+          17,
+          45
+        ]
+      ]
+    },
+    "native_scorer": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/autodan-role-probe/scorer.py",
+      "sha256": "467fb75fe75f07f3cfb565734f62ff420ffb5687237812a5dc03a999e808c995",
+      "line_ranges": [
+        [
+          263,
+          278
+        ],
+        [
+          341,
+          355
+        ]
+      ]
+    },
+    "modeling_gpt_oss": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/.venv/lib/python3.12/site-packages/transformers/models/gpt_oss/modeling_gpt_oss.py",
+      "sha256": "337035485d09d39c0b001b7e2b5e12b2e634090f1249509bf22b367bfe6125eb",
+      "line_ranges": [
+        [
+          68,
+          130
+        ],
+        [
+          350,
+          401
+        ],
+        [
+          450,
+          518
+        ]
+      ]
+    },
+    "mxfp4_integration": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/.venv/lib/python3.12/site-packages/transformers/integrations/mxfp4.py",
+      "sha256": "70b4bdd44c254a69c96428248514865a781003f85f70e1160ceca9417181c837",
+      "line_ranges": [
+        [
+          354,
+          419
+        ],
+        [
+          489,
+          506
+        ],
+        [
+          510,
+          544
+        ]
+      ]
+    },
+    "mxfp4_quantizer": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/.venv/lib/python3.12/site-packages/transformers/quantizers/quantizer_mxfp4.py",
+      "sha256": "a4f9c3f145079d38a9b52f5cb745516ef707526c82372596683400b04ec5d9fe",
+      "line_ranges": [
+        [
+          256,
+          261
+        ]
+      ]
+    },
+    "checkpointing_layer": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/.venv/lib/python3.12/site-packages/transformers/modeling_layers.py",
+      "sha256": "9e4726c07cfc895d95f9a75b0e7d23b8561575080811695e70fa879b0a18dae4",
+      "line_ranges": [
+        [
+          34,
+          94
+        ]
+      ]
+    },
+    "kernel_tree": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/trees/9fbc1b48e710ac8abf18ea2650ee690d52dc3859.json",
+      "sha256": "32c01cfa7c23284854aa1fec814280f2734386e2c9228c07c69e96810e773142"
+    },
+    "kernel_matmul": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/blobs/e2dc00246646a9914bcb63a754788c99218540c5",
+      "sha256": "698c0c515cba84b07516886357d53d6afcbd457e9179d9687626f79bf673aede",
+      "line_ranges": [
+        [
+          188,
+          290
+        ],
+        [
+          337,
+          347
+        ],
+        [
+          375,
+          393
+        ],
+        [
+          449,
+          463
+        ],
+        [
+          529,
+          590
+        ],
+        [
+          597,
+          613
+        ]
+      ],
+      "logical_path": "build/torch-cuda/matmul_ogs.py"
+    },
+    "kernel_routing": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/blobs/d76cb65596b83c4886fc2f0cae3d442e7559ba6e",
+      "sha256": "2b479f6cb6bdad96e62d93670c801e830e19b8d91dc1daf573eac10fe1537f85",
+      "line_ranges": [
+        [
+          93,
+          163
+        ]
+      ],
+      "logical_path": "build/torch-cuda/routing.py"
+    },
+    "kernel_topk": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/blobs/065c3fb65169a6574849dadacd38fdc6ab0d0d9b",
+      "sha256": "9be363835e6ce1af3f79c4dbd18738e222932bfa130588f7fc8981accf443c37",
+      "line_ranges": [
+        [
+          68,
+          87
+        ]
+      ],
+      "logical_path": "build/torch-cuda/topk.py"
+    },
+    "kernel_swiglu": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/blobs/c0257260e54e0020c296b66b9941dda384848431",
+      "sha256": "edd7e1eb0dc85b346e5f1d783a5f20a20cc936d2d10591cd8c295221bb995f6c",
+      "line_ranges": [
+        [
+          25,
+          86
+        ]
+      ],
+      "logical_path": "build/torch-cuda/swiglu.py"
+    },
+    "kernel_package_loader": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/single-message-pre-mlp/outputs/huggingface/hub/models--kernels-community--gpt-oss-triton-kernels/blobs/a9b2672c1cd85b74c1b3ded0fc0b2100e1aeac23",
+      "sha256": "0c560f96b857c188c4a8297ff27d1299619957c3459a5e433e132329fbfdf066"
+    },
+    "model_config": {
+      "path": "/tmp/wz55191-agentdojo-first-tool-model/config.json",
+      "sha256": "933aeb666a3fd851133ddd7686414f369bc564c4185fb5704416550879f10566"
+    },
+    "model_index": {
+      "path": "/tmp/wz55191-agentdojo-first-tool-model/model.safetensors.index.json",
+      "sha256": "ede2655fdc05008561983b6e0829c600727c28d591e071077377059f03a6c00e"
+    },
+    "probe_checkpoint": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/c4-dolma3-single-agentdojo-mixed-2080ti-20261103/checkpoint.npz",
+      "sha256": "fe602209cab66a433c34978dab8b2e8157f372ca5fb1c7f6881882401a6ffa33"
+    }
+  },
+  "limitations": [
+    "No autograd execution or finite-difference validation was performed. Custom backward correctness, higher-order derivatives, CPU offload performance, and GPU peak memory remain unmeasured.",
+    "Dequantization/reference arithmetic and changed attention kernels would need separate numerical checks against native forward; source inspection does not certify bitwise equivalence."
+  ]
+}

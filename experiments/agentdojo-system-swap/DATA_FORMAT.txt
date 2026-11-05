@@ -1,0 +1,73 @@
+GPT-OSS-120B / AgentDojo system-message rotation collection
+
+Formal output directory:
+  outputs/gpt-oss-120b-system-swap-fresh57-20261102/
+
+Requests come from the AgentDojo code under:
+  ~/Github/delimeter-token/indirect-prompt-injection/ChatInject/src
+The source commit, source hashes, task list, model binding, code hashes and
+generation settings are recorded in agentdojo-source.json and manifest.json.
+There are 57 no-payload tasks: banking 16, slack 21 and travel 20.
+Each task runs the actual AgentDojo tool loop, with injections={}.
+
+System transformation
+  Split the native system body immediately AFTER the exact string
+  "Reasoning: medium". If the two pieces are A and B, replace A+B by B+A.
+  Whitespace is preserved. All text outside that system body is unchanged.
+  request.json stores both prompts, the transformation and the actual IDs.
+
+Feature meaning
+  Each row contains 16 selected attention heads before o_proj, in this order:
+  1166, 1069, 2296, 1161, 2093, 2088, 2295, 2045,
+  2179, 2288, 1274, 897, 1305, 2091, 2094, 1930.
+  Each head contributes 64 columns, so a complete row has 1024 BF16 values.
+  Input features come from the full native prefill. Output features come
+  from each emitted token's OWN native decode forward, rather than from
+  the preceding token's prediction step or a later teacher-forced replay.
+  Input token IDs are checked independently at the model root on every
+  capture forward. backend.json records real-model bit-exact validation.
+
+Delimiter filtering
+  Native delimiters remain present during model inference. Only the saved
+  rows are filtered, excluding IDs:
+  199998, 199999, 200002, 200003, 200005,
+  200006, 200007, 200008, 200012, 200018.
+  Ordinary header text remains. body_mask additionally allows selecting
+  message bodies only. positions refer to the original, unfiltered input
+  or generated-output token stream, respectively.
+
+Files for one committed model call
+  calls/no_payload/SUITE/user_task_N/call_NNNN/
+    original_request.json  Original AgentDojo request before rendering.
+    request.json           Original/swapped prompts, IDs and provenance.
+    response.json          Parsed response supplied to the tool loop.
+    states.safetensors     Features and token-alignment tensors.
+    receipt.json           SHA256 hashes and row counts for this call.
+
+Tensors in states.safetensors
+  input_features, output_features: [saved_tokens, 1024], BF16.
+  input_token_ids, output_token_ids: token IDs aligned with feature rows.
+  input_positions, output_positions: original stream positions.
+  input_body_mask, output_body_mask: boolean message-body selection.
+  input_role_ids, output_role_ids: -1 for structure, otherwise indexes in
+    [system, developer, user, cot, assistant, tool].
+  head_ids: the ordered global head IDs above.
+
+Reading example (from the repository root, using its .venv)
+  .venv/bin/python experiments/agentdojo-system-swap/read_states.py \
+    experiments/agentdojo-system-swap/outputs/gpt-oss-120b-system-swap-fresh57-20261102 \
+    banking/user_task_0 0 output --body-only
+
+  Add --head 1166 to read only that head's 64 columns. Use input instead
+  of output to read input-token features. Import read_call() from
+  read_states.py for direct tensor access; its feature tensor retains BF16.
+
+Completion
+  A receipt commits one call. tasks/SUITE/user_task_N/result.json commits
+  one completed benchmark task. Partial results are usable before the
+  complete run finishes, but must not be described as the full dataset.
+  complete.json exists only after all 57 tasks and every call pass the
+  collector's full coverage, hash, transformation and tensor checks.
+  Utility/security results describe benchmark behavior, independently of
+  collection validity. Generation termination and parse status are kept
+  per call in request.json.

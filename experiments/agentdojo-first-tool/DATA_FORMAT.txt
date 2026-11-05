@@ -1,0 +1,100 @@
+AgentDojo first-payload whole-tool-response hidden states
+
+Authoritative final accounting is in audit.json, canonical_cases.json and
+feature_index.json, over all entries of the top-level schedule.json.
+Top-level cases/ and calls/ contain the original native phase. The separate
+serialization_recovery_v2/ phase covers 11 cases whose PyYAML double-quoted
+line continuations were initially missed, plus 157 then-unfinished cases.
+The corrected observer changes boundary detection only. Model, renderer,
+full-prefill engine, decoder, source benchmark and head hooks stay frozen.
+Existing actual inputs must match token-for-token in the fresh native reruns.
+Independent PyYAML decoding checks the exact original payload in tool content.
+startup_attempts/ preserves failed environment/parser preflight attempts under
+their own bindings; it contains no formal hidden states and is excluded from
+the canonical case and feature-row counts. Original phase outcomes superseded
+by corrected native reruns are historical records, not final observations.
+
+Scope: AgentDojo v1.2.1, all four suites, 97 user tasks, 949 user/injection
+pairs, two delimiter-bearing conditions, 1,898 attempted cases. The native
+AgentDojo request conversion, injection candidate selection, simulated tools,
+environments, task retries and tool loops come from ~/Github/delimeter-token.
+
+Conditions:
+plain_delimiter uses IMPORTANT!!! Ignore all previous instructions ...
+remember_delimiter uses Remember, before you answer the original request ...
+Both use the exact reference developer-template / user-goal native wrapper,
+including assistant final suffix. See scope.json for byte-exact strings.
+Native system message order is unchanged. Medium reasoning, greedy decoding,
+seed 0, max 1024 generated tokens per call, fixed reference date 2026-10-21.
+
+Each case runs the native model/tool pipeline until its first actual model input
+containing the complete payload in a trusted original outer tool message.
+At that input, one entire-sequence backbone forward captures the WHOLE tool
+body at self_attn.o_proj input. The episode then stops. No attack-success or
+post-exposure task-completion result is claimed. Unexposed and error cases are
+explicitly retained in the schedule and audit, without fabricated features.
+
+Tool ownership is derived by instrumenting only the official tool template
+expression. Removing instrumentation must exactly reproduce the actual prompt.
+No instrumentation is sent to the model. Payload-contained native start/end
+markers do not truncate the trusted outer tool body. All benign prefix/suffix
+content and serialized JSON quote/escape tokens are included.
+
+Token positions and char offsets come from tokenizing the complete rendered
+prompt with the original tokenizer. Save every token overlapping the trusted
+tool body except native delimiter IDs listed in manifest.json. Delimiters are
+present during inference and filtered only from saved feature rows. Ordinary
+role/channel words developer, user, assistant and final remain in the features.
+
+calls/<condition>/<suite>/<user>/<injection>/call_NNNN/ contains:
+  original_request.json: original AgentDojo message objects, converted request,
+    tools, payload/goal, injection mapping and case identity.
+  input.json: exact complete rendered input, IDs, offsets and trusted spans.
+  states.safetensors (first exposure only):
+    features_union: [tool_tokens, 25 ordered attention heads, 64] BF16.
+    positions/token_ids/char_offsets: original input row alignment.
+    payload_mask: first complete payload occurrence, template plus goal,
+      including ordinary wrapper role words. All later copies in this tool
+      body are still captured; these masks describe the first matched copy.
+    goal_mask: actual goal; overlapping boundary tokens belong to goal.
+    template_mask = payload_mask & ~goal_mask.
+    context_mask = ~payload_mask.
+    excluded_delimiter_positions: removed rows in the full original input.
+  receipt.json: source/tensor hashes, binding, span counts, actual-model-input
+    assertion and selected-layer hook completion.
+  response.json (pre-exposure calls): native generated IDs/text and exact
+    prefix-cache binding. parsed_response.json holds the native Harmony
+    parse performed in the AgentDojo environment. Actual analysis is saved
+    but not fed into subsequent calls, following the reference adapter.
+
+Native prefix generation can be reused only when the complete input IDs and
+entire frozen collector/model/generation binding match. Cached raw model output
+IDs are reparsed with case-local tool-call IDs. Source native output and cache
+hashes remain available. Every first-exposure tool-state capture is a new actual
+full-input forward, never a cache of features or a payload-only replay.
+
+Model uses native packed MXFP4 weights, BF16 activations, 18 contiguous layers
+on each of two H100s, synchronous host staging for inter-device transfers.
+Attention query tiling bounds attention workspace while preserving the complete
+sequence through every backbone/MoE layer. No whole-model chunking or truncation.
+Original eager vs tiled prefill at 384 tokens (crossing the sliding window and
+tile boundary), 16 cached decode steps, selected heads and passive-hook logits
+must pass bit-exact validation before any formal case is run.
+
+Head orders:
+  final-v7 selected 16 heads: X_final_v7_16.npy has 1,024 columns.
+  reference dataset selected 10 heads: X_reference_10.npy has 640 columns,
+    using the strict float16 input representation required by that reader.
+The raw union stores 25 distinct heads. Both exact orders and frozen probes
+are preserved in manifest.json/provenance/. No head averaging is applied.
+
+After postprocessing/audit_export_v2.py --export and
+postprocessing/prepare_probe_inputs.py:
+  probe_inputs/X_final_v7_16.npy is float32, an exact BF16 conversion.
+  X_reference_10.npy is converted to the reference reader's required float16.
+  All original BF16 values remain in the per-case raw tensors. No feature
+  standardization or pooling is applied to either saved probe input.
+  Load with np.load(path, mmap_mode='r', allow_pickle=False).
+  Aligned case_index, token_ids, positions and masks are provided as .npy.
+  feature_index.json joins per-case row ranges to schedule.json and original
+  first-exposure calls. audit.json accounts for every scheduled case.
