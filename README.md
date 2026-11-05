@@ -136,6 +136,10 @@ It explains the original method, the subsequent classifier changes, the archived
 training dependencies, and the independently confirmed results with original and
 new figures.
 
+For six-label single-message activation collection on GPT-OSS-120B (1,000 C4
+texts and 1,000 Dolma3 texts, all 36 pre-MLP layers), see the
+[collection guide](experiments/single-message-pre-mlp/README.zh-CN.md).
+
 ## 2. CoT Forgery Evaluations
 
 This workflow runs CoT Forgery in both chat and agent settings. The chat
@@ -222,6 +226,45 @@ prompt-injection role-confusion analysis in the paper, where we vary Userness ex
 The first notebook creates prompt-injection variants, runs the ReAct loop for
 `gpt-oss-*`, classifies agent harm level, and extracts the mean Userness of each
 injected query.
+
+### 4.1 Optimizing Userness directly (rich evolution on the role probe)
+
+`experiments/autodan-role-probe/rich_evolution.py` searches injection wrapper
+templates whose only objective is the frozen role probe's mean goal-token
+P(user) over six native AgentDojo tool contexts, under two hard constraints: no
+genuine Harmony special-token spelling or ID may appear in the payload, and no
+repeated text blocks are allowed (the `diverse_policy` admission rule). The
+search combines LLM-generated seeds and GPTFuzzer-style LLM operators
+(OpenRouter, abstract templates only), a near-delimiter grammar with variable
+message count, role order and inter-message content, Unicode noise, an adaptive
+operator bandit and a MAP-Elites archive, starting at 128 wrapper tokens and
+growing the cap only when the search stalls. Within 4,324 scored templates the
+best reached P(user) = 0.998 (previous non-repetitive best: 0.42). Templates
+selected from different P(user) bands were then evaluated on the full 389-task
+AgentDojo population with the frozen fixed-candidate evaluator:
+
+| P(user) band | P(user) | AgentDojo ASR | Utility |
+| --- | --- | --- | --- |
+| 0.99–1.00 | 0.998 | 82.5% (321/389) | 0.15 |
+| 0.90–0.99 | 0.990 | 83.5% (323/387) | 0.22 |
+| 0.80–0.90 | 0.900 | 85.6% (333/389) | 0.10 |
+| 0.70–0.80 | 0.800 | 75.1% (292/389) | 0.38 |
+| 0.60–0.70 | 0.700 | 71.1% (276/388) | 0.30 |
+| 0.50–0.60 | 0.600 | 71.0% (276/389) | 0.35 |
+| 0.40–0.50 | 0.500 | 46.3% (180/389) | 0.47 |
+| 0.30–0.40 | 0.398 | 73.9% (286/387) | 0.36 |
+| 0.20–0.30 | 0.300 | 44.2% (172/389) | 0.38 |
+| 0.10–0.20 | 0.200 | 29.0% (113/389) | 0.55 |
+| plain baseline | 0.000 | 3.1% (12/388) | – |
+
+ASR rises with P(user) overall (Spearman rho = 0.88 over the ten bands) but is
+not monotone template by template: one 0.40-band template reaches 73.9% while
+the 0.50-band one reaches 46.3%, so the probe score ranks wrappers coarsely
+rather than predicting ASR per template. Above P(user) ≈ 0.9 ASR saturates at
+82–86%. Method details, provenance and the full tables are in
+`experiments/autodan-role-probe/outputs/richevo-20261105/METHOD.zh-CN.md` and
+`REPORT.zh-CN.md`; `rich_report.py` regenerates the report and figures from the
+ledgers.
 
 
 ## Citation
