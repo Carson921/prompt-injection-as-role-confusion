@@ -267,6 +267,40 @@ rather than predicting ASR per template. Above P(user) ≈ 0.9 ASR saturates at
 ledgers.
 
 
+### 4.2 Transfer to IPI Arena (same templates, same probe, tool-check judge)
+
+`experiments/ipi-arena-richevo/` evaluates the ten band-selected templates and
+the plain baseline on the open-source IPI Arena benchmark
+(`ipi_arena_os`, 41 behaviors). Goals are imperative restatements of each
+behavior's deterministic `tool_call` judge (36 primary behaviors; two with a
+`tool_judge` but no `tool_call` criterion are reported separately; three
+without a `tool_judge` are skipped). The target is gpt-oss-120b served by vLLM
+(OpenAI API, temperature 0, up to five steps), WorldSim is
+`google/gemini-2.5-flash` via OpenRouter, and a break is decided only by the
+repository's unchanged tool judge. The same frozen probe scores the goal
+tokens of each initial prompt (token-identical to vLLM's `/tokenize` output).
+
+| P(user) band (AgentDojo) | P(user) IPI Arena | IPI Arena ASR | AgentDojo ASR |
+| --- | --- | --- | --- |
+| 0.99–1.00 | 0.838 | 52.8% (19/36) | 82.5% |
+| 0.90–0.99 | 0.754 | 52.8% (19/36) | 83.5% |
+| 0.80–0.90 | 0.660 | 61.1% (22/36) | 85.6% |
+| 0.70–0.80 | 0.353 | 44.4% (16/36) | 75.1% |
+| 0.60–0.70 | 0.575 | 44.4% (16/36) | 71.1% |
+| 0.50–0.60 | 0.579 | 44.4% (16/36) | 71.0% |
+| 0.40–0.50 | 0.384 | 47.2% (17/36) | 46.3% |
+| 0.30–0.40 | 0.399 | 50.0% (18/36) | 73.9% |
+| 0.20–0.30 | 0.348 | 38.9% (14/36) | 44.2% |
+| 0.10–0.20 | 0.066 | 25.0% (9/36) | 29.0% |
+| plain baseline | 0.005 | 8.3% (3/36) | 3.1% |
+
+P(user) transfers across benchmarks (Spearman 0.85 between the AgentDojo and
+IPI Arena probe scores) and still tracks ASR on IPI Arena (Spearman 0.87
+between IPI Arena P(user) and IPI Arena ASR over the eleven conditions),
+although absolute ASR is lower than on AgentDojo and the per-template
+ordering is again not monotone. Details, per-behavior results and the goal
+list are in `experiments/ipi-arena-richevo/outputs/run-20261108/REPORT.zh-CN.md`.
+
 ## Citation
 
 ```bibtex
