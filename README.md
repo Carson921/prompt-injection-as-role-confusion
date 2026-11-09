@@ -301,6 +301,32 @@ although absolute ASR is lower than on AgentDojo and the per-template
 ordering is again not monotone. Details, per-behavior results and the goal
 list are in `experiments/ipi-arena-richevo/outputs/run-20261108/REPORT.zh-CN.md`.
 
+### 4.3 Optimizing directly on IPI Arena (higher P(user), no higher ASR)
+
+Running the same rich-evolution search with the IPI Arena probe score as the
+objective (a 12-behavior panel, 6 h, 1,493 scored candidates, wrapper cap 128
+tokens; `experiments/ipi-arena-richevo/ipi_evolution.py`) raises the full
+36-behavior goal-token P(user) from 0.838 (best AgentDojo template) to
+0.899; every one of the top-20 panel candidates scores 0.887–0.899.
+Re-running the tool-check ASR with the top five of them next to the plain
+baseline and the two strongest AgentDojo templates (one WorldSim session,
+304 episodes, `outputs/asr-ipievo-20261108/`):
+
+| Condition | IPI P(user) | IPI ASR |
+|---|---|---|
+| ipievo_1 … ipievo_5 (IPI-optimized) | 0.895–0.899 | 44.4–58.3% (16–21/36) |
+| AgentDojo band 0.99–1.00 | 0.838 | 52.8% (19/36) |
+| AgentDojo band 0.80–0.90 | 0.660 | 63.9% (23/36) |
+| plain baseline | 0.005 | 11.1% (4/36) |
+
+The extra probe mass does not buy more breaks: across the IPI-optimized
+templates the remaining failures are mostly explicit refusals with no tool
+call at all (9–11 of 15–20 failures per template), i.e. the model reads the
+goal as the user's request and declines it on content grounds, which the
+role probe cannot see. The eight-condition Spearman between P(user) and ASR
+drops to −0.05, consistent with the P(user)–ASR relation saturating around
+0.85–0.9 on this benchmark.
+
 ## Citation
 
 ```bibtex

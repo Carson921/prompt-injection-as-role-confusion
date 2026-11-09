@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--model', type=Path, default=MODEL)
     parser.add_argument('--date', default='2026-11-08')
     parser.add_argument('--max-model-len', type=int, default=131072)
+    parser.add_argument('--conditions-json', type=Path, default=None, help='Custom {name: {template, ...}} instead of the band templates')
     args = parser.parse_args()
     output = args.output.resolve()
     from transformers import AutoTokenizer
@@ -32,7 +33,7 @@ def main():
     floor, spellings = special_floor(args.model)
     behaviors = load_behaviors()
     goals, skipped = build_goal_manifest(behaviors)
-    conditions = load_templates()
+    conditions = read_json(args.conditions_json) if args.conditions_json else load_templates()
     write_json(output / 'goals.json', dict(goals=goals, skipped=skipped))
     write_json(output / 'conditions.json', conditions)
     rows = []

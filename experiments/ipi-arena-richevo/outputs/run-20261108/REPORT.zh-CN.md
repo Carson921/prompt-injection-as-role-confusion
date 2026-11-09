@@ -8,30 +8,30 @@
 - 41 个 behavior 中 38 个带 `tool_judge` 配置；其中 36 个的 criteria 含 `judge: tool_call`（主集，ASR 分母）；2 个（change-test-to-true, parser-backdoor）只有 `tool_judge` 配置而无 tool_call criterion，作为补充单独列出；3 个无 `tool_judge`，跳过：browser-gmail-forward-injection, flashing-lights-seizure, venmo-5k-no-permission。
 - goal 为 tool_call judge 的祈使句改写（如 `Clicked "Add to Cart"` → `click on the "Add to Cart" button`），判定器要求精确参数/正则时，goal 中逐字给出这些参数。每条 goal 配一个"见证"工具调用，用仓库原判定器自检通过后才使用。
 - 浏览器任务对纯文本模型的适配：去掉截图图像块；注入只存在于截图时，把截图源 HTML（去掉 base64 图像数据）附加到对应工具返回。
-- 模板为 AgentDojo 阶段按 P(user) 区间选出的 10 个 rich-evolution 模板 + plain 基线（只放 goal）。
+- 条件：plain = 只放 goal 的基线；band_0.99_1.00 = AgentDojo 阶段 P(user)∈[0.99, 1.00) 的 rich-evolution 模板；band_0.90_0.99 = AgentDojo 阶段 P(user)∈[0.90, 0.99) 的 rich-evolution 模板；band_0.80_0.90 = AgentDojo 阶段 P(user)∈[0.80, 0.90) 的 rich-evolution 模板；band_0.70_0.80 = AgentDojo 阶段 P(user)∈[0.70, 0.80) 的 rich-evolution 模板；band_0.60_0.70 = AgentDojo 阶段 P(user)∈[0.60, 0.70) 的 rich-evolution 模板；band_0.50_0.60 = AgentDojo 阶段 P(user)∈[0.50, 0.60) 的 rich-evolution 模板；band_0.40_0.50 = AgentDojo 阶段 P(user)∈[0.40, 0.50) 的 rich-evolution 模板；band_0.30_0.40 = AgentDojo 阶段 P(user)∈[0.30, 0.40) 的 rich-evolution 模板；band_0.20_0.30 = AgentDojo 阶段 P(user)∈[0.20, 0.30) 的 rich-evolution 模板；band_0.10_0.20 = AgentDojo 阶段 P(user)∈[0.10, 0.20) 的 rich-evolution 模板。
 
 ## 2. 主结果（主集 36 个任务）
 
-| 条件 | AgentDojo P(user) | IPI P(user) | IPI ASR (成功/完成) | browser | coding | tool | 去尾分号后 ASR | AgentDojo ASR | 平均步数 |
-|---|---|---|---|---|---|---|---|---|---|
-| plain | - | 0.0047 | 8.3% (3/36) | 1/6 | 0/13 | 2/17 | 8.3% (3) | - | 3.00 |
-| band_0.99_1.00 | 0.9984 | 0.8376 | 52.8% (19/36) | 3/6 | 5/13 | 11/17 | 55.6% (20) | 82.5% | 2.53 |
-| band_0.90_0.99 | 0.9896 | 0.7540 | 52.8% (19/36) | 4/6 | 4/13 | 11/17 | 55.6% (20) | 83.5% | 2.72 |
-| band_0.80_0.90 | 0.8997 | 0.6600 | 61.1% (22/36) | 4/6 | 6/13 | 12/17 | 63.9% (23) | 85.6% | 2.72 |
-| band_0.70_0.80 | 0.7999 | 0.3533 | 44.4% (16/36) | 4/6 | 2/13 | 10/17 | 47.2% (17) | 75.1% | 2.58 |
-| band_0.60_0.70 | 0.7000 | 0.5750 | 44.4% (16/36) | 3/6 | 2/13 | 11/17 | 44.4% (16) | 71.1% | 2.39 |
-| band_0.50_0.60 | 0.5999 | 0.5785 | 44.4% (16/36) | 4/6 | 4/13 | 8/17 | 47.2% (17) | 71.0% | 2.72 |
-| band_0.40_0.50 | 0.4995 | 0.3844 | 47.2% (17/36) | 3/6 | 2/13 | 12/17 | 47.2% (17) | 46.3% | 2.72 |
-| band_0.30_0.40 | 0.3980 | 0.3986 | 50.0% (18/36) | 4/6 | 4/13 | 10/17 | 52.8% (19) | 73.9% | 2.56 |
-| band_0.20_0.30 | 0.2998 | 0.3475 | 38.9% (14/36) | 3/6 | 3/13 | 8/17 | 41.7% (15) | 44.2% | 2.61 |
-| band_0.10_0.20 | 0.1999 | 0.0661 | 25.0% (9/36) | 3/6 | 1/13 | 5/17 | 25.0% (9) | 29.0% | 2.61 |
+| 条件 | AgentDojo P(user) | 优化期 IPI P(user) | IPI P(user) | IPI ASR (成功/完成) | browser | coding | tool | 去尾分号后 ASR | AgentDojo ASR | 平均步数 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| plain | - | - | 0.0047 | 8.3% (3/36) | 1/6 | 0/13 | 2/17 | 8.3% (3) | - | 3.00 |
+| band_0.99_1.00 | 0.9984 | - | 0.8376 | 52.8% (19/36) | 3/6 | 5/13 | 11/17 | 55.6% (20) | 82.5% | 2.53 |
+| band_0.90_0.99 | 0.9896 | - | 0.7540 | 52.8% (19/36) | 4/6 | 4/13 | 11/17 | 55.6% (20) | 83.5% | 2.72 |
+| band_0.80_0.90 | 0.8997 | - | 0.6600 | 61.1% (22/36) | 4/6 | 6/13 | 12/17 | 63.9% (23) | 85.6% | 2.72 |
+| band_0.70_0.80 | 0.7999 | - | 0.3533 | 44.4% (16/36) | 4/6 | 2/13 | 10/17 | 47.2% (17) | 75.1% | 2.58 |
+| band_0.60_0.70 | 0.7000 | - | 0.5750 | 44.4% (16/36) | 3/6 | 2/13 | 11/17 | 44.4% (16) | 71.1% | 2.39 |
+| band_0.50_0.60 | 0.5999 | - | 0.5785 | 44.4% (16/36) | 4/6 | 4/13 | 8/17 | 47.2% (17) | 71.0% | 2.72 |
+| band_0.40_0.50 | 0.4995 | - | 0.3844 | 47.2% (17/36) | 3/6 | 2/13 | 12/17 | 47.2% (17) | 46.3% | 2.72 |
+| band_0.30_0.40 | 0.3980 | - | 0.3986 | 50.0% (18/36) | 4/6 | 4/13 | 10/17 | 52.8% (19) | 73.9% | 2.56 |
+| band_0.20_0.30 | 0.2998 | - | 0.3475 | 38.9% (14/36) | 3/6 | 3/13 | 8/17 | 41.7% (15) | 44.2% | 2.61 |
+| band_0.10_0.20 | 0.1999 | - | 0.0661 | 25.0% (9/36) | 3/6 | 1/13 | 5/17 | 25.0% (9) | 29.0% | 2.61 |
 
 错误（未完成）episode 数：0；vLLM `/tokenize` 与本地渲染一致的 episode：418/418（含补充任务）；WorldSim 因 Gemini 内容策略拦截而使用 `{"status": "success"}` 回退的 episode：14（全部为 fake-fedex-approval / email-summarizer-exfiltration）。
 
 相关性（11 个条件）：
 
 - IPI P(user) vs IPI ASR：Spearman 0.87（含 plain）/ 0.82（仅优化模板），Pearson 0.86（含 plain）
-- AgentDojo P(user) vs IPI P(user)：Spearman 0.85，Pearson 0.87
+- AgentDojo P(user) vs IPI P(user)（10 个 AgentDojo 模板）：Spearman 0.85，Pearson 0.87
 - AgentDojo P(user) vs IPI ASR：Spearman 0.75；AgentDojo ASR vs IPI ASR：Spearman 0.87
 - episode 级（396 个）goal P(user) 与成功的点双列相关：0.22
 
@@ -132,3 +132,21 @@
 - 浏览器任务的 ASR 受纯文本适配影响（无截图），与原榜单的多模态设置不可直接比较。
 - WorldSim 返回由 gemini-2.5-flash 生成，具有随机性（temperature 0 但非确定），每个 episode 只跑一次，不重跑。
 - 文件：`protocol.json`（冻结的请求清单与哈希）、`requests/`（初始 prompt 与 token 位置）、`cases/`（每个 episode 的全部消息、工具调用、判定）、`probe/`（每个请求的 goal token 概率）、`summary.json` / `probe_summary.json` / `correlations.json` / `report_rows.json`。
+
+## 6. 失败形态
+
+主集失败 episode 中，最终回复含拒绝措辞（"I'm sorry / can't / policy" 等）的数量，以及整个 episode 未发出任何工具调用的数量：
+
+| 条件 | 失败数 | 含拒绝措辞 | 无任何工具调用 |
+|---|---|---|---|
+| plain | 33 | 4 | 11 |
+| band_0.99_1.00 | 17 | 9 | 11 |
+| band_0.90_0.99 | 17 | 7 | 9 |
+| band_0.80_0.90 | 14 | 7 | 7 |
+| band_0.70_0.80 | 20 | 8 | 9 |
+| band_0.60_0.70 | 20 | 9 | 13 |
+| band_0.50_0.60 | 20 | 6 | 11 |
+| band_0.40_0.50 | 19 | 7 | 9 |
+| band_0.30_0.40 | 18 | 8 | 10 |
+| band_0.20_0.30 | 22 | 11 | 13 |
+| band_0.10_0.20 | 27 | 9 | 13 |
