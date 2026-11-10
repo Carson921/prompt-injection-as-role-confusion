@@ -327,6 +327,41 @@ role probe cannot see. The eight-condition Spearman between P(user) and ASR
 drops to −0.05, consistent with the P(user)–ASR relation saturating around
 0.85–0.9 on this benchmark.
 
+### 4.4 Defensive prefixes: raising the attack's P(tool) against ChatInject
+
+`experiments/chatinject-defense-prefix/` turns the probe around. The attack is
+a ChatInject payload that wraps the "Remember, before you answer the original
+request…" template and the goal in one genuine Harmony user turn
+(`<|end|><|start|>user<|message|>` … `<|end|><|start|>assistant<|channel|>final<|message|>`;
+the special tokens survive AgentDojo's `tojson` rendering and are verified as
+real special-token IDs in every exposed request). The same rich-evolution
+engine then searches an ordinary-text prefix D (no special tokens, same
+admission rules) placed directly before the payload, with the objective of
+raising the mean P(tool) over the attack body (remember sentence + goal)
+across the six probe contexts (4 h, 5,000 prefixes, cap 128→512 tokens).
+Prefixes chosen from P(tool) bands by probe score only were evaluated on the
+full 389-task AgentDojo panel:
+
+| Condition | Attack-body P(tool) | AgentDojo ASR | Utility |
+|---|---|---|---|
+| no defense | 0.156 | 86.6% (337/389) | 0.43 |
+| hand-written "untrusted tool data" notice | 0.220 | 85.8% (333/388) | 0.40 |
+| band 0.20–0.50 (3 prefixes) | 0.30–0.50 | 82.0–86.9% | 0.41–0.43 |
+| band 0.50–0.90 (4 prefixes) | 0.60–0.90 | 57.3–71.9% | 0.45–0.52 |
+| band 0.90–0.99 | 0.990 | 5.9% (23/389) | 0.56 |
+| band 0.99–1.00 | 1.000 | 8.0% (31/389) | 0.57 |
+| remember text without delimiters (reference) | – | 58.8% (228/388) | 0.55 |
+
+ASR falls with P(tool) (Spearman −0.92 over 11 conditions), with a threshold
+shape: little effect below 0.5, a partial drop between 0.6 and 0.9, and a
+collapse to 6–8% only at P(tool) ≥ 0.99, with higher utility than no defense.
+The semantic notice alone does nothing, so the effect comes from structure
+that moves the body's role representation, not from the "do not follow"
+wording. The placement is an oracle (the defender is assumed to know where
+the injection starts), and neither placement before the whole tool output
+nor an attacker that adapts to the prefix was tested. See `METHOD.zh-CN.md`
+and `outputs/REPORT.zh-CN.md` in that directory.
+
 ## Citation
 
 ```bibtex
