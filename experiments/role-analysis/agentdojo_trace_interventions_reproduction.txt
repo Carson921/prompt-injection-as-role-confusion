@@ -1,0 +1,182 @@
+Reproducing the benign AgentDojo role-intervention experiment
+
+This file documents commands and prerequisites. It is not a completion attestation.
+Completion is established only by the final delivery-manifest.json after every
+required stage, export, full independent audit, statistics audit and report passes.
+
+Fixed inputs and interpretation
+
+The experiment uses the supplied six-role checkpoint with SHA256
+fe602209cab66a433c34978dab8b2e8157f372ca5fb1c7f6881882401a6ffa33.
+The user-uploaded source archive is
+/home/wz55191/full57_no_payload_first_occurrence_probe_v7_20261027.tar.gz
+with SHA256 a903675f210a5695060f6418d6d62360f27190cbf1dad8b12934321b7eff1078.
+The extracted, sealed native source is currently
+/scratch/wz55191/agentdojo-trace-source-20261112/full57_no_payload_first_occurrence_probe_v7_20261027.
+sources/manifest.json and reproduction/external-materials.json record these paths
+and their verification provenance. Keep the archive unchanged.
+
+The source has 57 benign tasks (FIT 40, DEV 8, TEST 9), 359 calls and 58 native
+passes. Complete chronological transcripts preserve exact initial native input,
+raw generations including CoT, and newly introduced native tool returns. Later
+API requests originally dropped earlier CoT, so the preserved transcript is a
+retrospective teacher-forced context, not the archived live-call context.
+No source body is re-tokenized and no tool is executed during replay.
+
+banking/user_task_9 is a DEV task with two recorded passes; both remain with an
+explicit reset boundary. travel/user_task_19 has a genuinely length-censored
+terminal assistant body; no artificial closing token is inserted. It remains
+in the FIT and all-task analyses with the explicit allow_terminal_body flag.
+
+Prerequisites
+
+Use a Python environment matching reproduction/environment.json and
+reproduction/requirements.freeze.txt. The native collector explicitly requires
+exactly two visible NVIDIA H100 GPUs, Torch 2.9.1+cu128 with CUDA 12.8,
+transformers 5.3.0, accelerate 1.12.0, kernels 0.11.7 and triton 3.5.1.
+It uses native MXFP4 weights, BF16 states, eager attention tiled by 256 queries,
+batch size one and a fixed 18/18 layer split. The native kernel revision is
+9fbc1b48e710ac8abf18ea2650ee690d52dc3859.
+
+The model currently resides at /tmp/wz55191-agentdojo-first-tool-model. Its
+staging-proof.json is checked against the checkpoint's bound shard digests.
+Large model weights and installed binary distributions remain external
+prerequisites: the frozen source/dependency snapshots are not a container image.
+reproduction/dependency-snapshots.json identifies critical Python/kernel files,
+their original paths and the copies included in the delivery.
+
+The final hidden-state payload is approximately 150 GiB, plus source/readout
+and derived files. Native BF16 model states are saved for selected target body
+tokens only: embedding, all 36 residual layers and final norm. Baseline stores
+the union of all six first-role bodies. hiddenstates-index.parquet gives the
+path, byte size, SHA256, target roles and row count for every input.
+
+Fresh full recomputation
+
+Run from /home/wz55191/Github/prompt-injection-as-role-confusion, or restore the
+same repository-relative implementation and required external assets. The
+frozen snapshot under reproduction/code preserves those relative source paths.
+Choose an empty output directory. The prepare command intentionally refuses
+to overwrite a prepared stage. A run command can resume verified committed
+inputs. Do not point a fresh recomputation at the sealed delivery directory.
+
+Set these shell variables, adjusting only asset/output paths as needed:
+
+  REPO=/home/wz55191/Github/prompt-injection-as-role-confusion
+  PYTHON="$REPO/.venv/bin/python"
+  SCRIPTS="$REPO/experiments/role-analysis"
+  MODEL=/tmp/wz55191-agentdojo-first-tool-model
+  CHECKPOINT_ROOT="$SCRIPTS/outputs/c4-dolma3-single-agentdojo-mixed-2080ti-20261103"
+  PROBE="$CHECKPOINT_ROOT/checkpoint.npz"
+  SOURCE=/scratch/wz55191/agentdojo-trace-source-20261112/full57_no_payload_first_occurrence_probe_v7_20261027
+  ARCHIVE=/home/wz55191/full57_no_payload_first_occurrence_probe_v7_20261027.tar.gz
+  DELIVERED="$SCRIPTS/outputs/agentdojo-trace-interventions-20261112"
+  NEW_OUTPUT="$SCRIPTS/outputs/agentdojo-trace-interventions-reproduction"
+
+Reconstruct and independently trace every selected first-role body back to the
+checkpoint-consumed source positions:
+
+  "$PYTHON" "$SCRIPTS/prepare_agentdojo_trace_sources.py" --source-root "$SOURCE" --checkpoint-root "$CHECKPOINT_ROOT" --tokenizer "$MODEL" --archive "$ARCHIVE" --output "$NEW_OUTPUT/sources"
+
+prepare_agentdojo_trace_sources.py emits traces.jsonl, source-manifest.json,
+source-verification.json and pilot-selection.json. The original delivered
+sources/manifest.json also binds the separate reconstruction audit that verifies
+all original generated tokens and all checkpoint-retained normal positions.
+Use the delivered frozen sources when exact source-file hashes are required;
+an independently regenerated manifest may differ in absolute paths or audit
+packaging while the token IDs remain identical.
+
+For the exact delivered source packaging, first compare regenerated token
+records, then reuse the original frozen source/audit metadata. This retains
+the original audit's provenance and does not pretend to rerun that audit:
+
+  cmp "$NEW_OUTPUT/sources/traces.jsonl" "$DELIVERED/sources/traces.jsonl"
+  for name in manifest.json source-manifest.json source-verification.json pilot-selection.json reconstruction-audit.json; do
+    cp "$DELIVERED/sources/$name" "$NEW_OUTPUT/sources/$name"
+  done
+
+Prepare and run the shortest complete FIT pilot, slack/user_task_7 (939 tokens):
+
+  "$PYTHON" "$SCRIPTS/run_agentdojo_trace_interventions.py" prepare --output "$NEW_OUTPUT" --stage pilot --model "$MODEL" --probe "$PROBE"
+  "$PYTHON" "$SCRIPTS/run_agentdojo_trace_interventions.py" run --output "$NEW_OUTPUT" --stage pilot --model "$MODEL" --probe "$PROBE"
+
+Postprocess and fully audit the pilot using the seven CPU commands below with
+STAGE=pilot. Report its results before preparing all tasks. The all-stage prepare
+command requires pilot/feedback.json with feedback_delivered=true and a genuine
+pilot_run_manifest_sha256 binding. This is an attestation of feedback actually
+delivered, not an automatic placeholder. The delivered feedback.json records
+the original experiment's completed pilot; do not reuse its run hash for a new
+run that has a different run manifest.
+
+After genuine pilot feedback, prepare and run all 57 tasks:
+
+  "$PYTHON" "$SCRIPTS/run_agentdojo_trace_interventions.py" prepare --output "$NEW_OUTPUT" --stage all --model "$MODEL" --probe "$PROBE"
+  "$PYTHON" "$SCRIPTS/run_agentdojo_trace_interventions.py" run --output "$NEW_OUTPUT" --stage all --model "$MODEL" --probe "$PROBE"
+
+This creates 2,451 distinct inputs: one baseline, six independent removals,
+30 directed wrapper swaps and six farthest-boundary moves per trace. Inputs
+are never cumulatively modified. Every same-role intervention preserves the
+original target body's exact token IDs. All inputs must finish before exports.
+
+CPU postprocessing commands, in dependency order
+
+Set STAGE=pilot or STAGE=all and run:
+
+  "$PYTHON" "$SCRIPTS/validate_agentdojo_trace_interventions.py" --output "$NEW_OUTPUT" --stage "$STAGE" --model "$MODEL" --probe "$PROBE"
+  "$PYTHON" "$SCRIPTS/export_agentdojo_trace_readouts.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+  "$PYTHON" "$SCRIPTS/validate_agentdojo_trace_readout_export.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+  "$PYTHON" "$SCRIPTS/analyze_agentdojo_trace_interventions.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+  "$PYTHON" "$SCRIPTS/audit_agentdojo_trace_intervention_statistics.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+  "$PYTHON" "$SCRIPTS/plot_agentdojo_trace_token_curves.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+  "$PYTHON" "$SCRIPTS/report_agentdojo_trace_interventions.py" --output "$NEW_OUTPUT" --stage "$STAGE"
+
+Do not pass --inputs-only or a positive --probe-row-cap for a final full audit.
+The full validator streams every hidden-state payload once for SHA256 and
+finite-value checks and independently recomputes every saved token's probe
+logits/probabilities. This rereads approximately 150 GiB. The exporter copies
+saved float32 logits/probabilities without recomputation and checks headers,
+sizes and alignment vectors without rereading the large residual payloads.
+The separate export checker imports none of the exporter/runner code and
+compares every Parquet coordinate, token ID, role mask and saved logit/probability
+against the original NPZ arrays. Float32 values are compared as uint32 bit
+patterns, including signed zero. This checker hashes compressed NPZ files and
+the small Parquets but never opens a hidden-state payload. A final seal requires
+all 2,451 inputs and 719,832 exported token rows to pass this comparison.
+
+FIT 40 is the primary mean; all 57 is a separate secondary mean. Average tokens
+within each body, then weight traces equally. Intervals use 2,000 paired whole-
+trace percentile bootstrap draws with seed 20261112 and are pointwise, not
+simultaneous. Token curves are supplemental: relative body-position bins are
+averaged within trace/bin before equal-trace aggregation; empty bins stay
+missing. None of these plots is a normalized text/delimiter/position contribution
+percentage or a behavioral attack-success measurement.
+
+Final seal and integrity checks
+
+After all-stage inference, exports, full independent validation, independent
+statistics validation and reports are complete:
+
+  "$PYTHON" "$SCRIPTS/seal_agentdojo_trace_interventions.py" --output "$NEW_OUTPUT" --check-only
+  "$PYTHON" "$SCRIPTS/seal_agentdojo_trace_interventions.py" --output "$NEW_OUTPUT"
+
+The tool checks completion against actual manifests and hashes before writing.
+It copies source/dependency snapshots and records package versions and paths.
+It constructs delivery-manifest.json and SHA256SUMS, hashing small artifacts and
+readouts directly. Hidden-state hashes are reused only after matching the passed
+full-payload independent audit, committed run, records and export; the seal checks
+current lengths and absence of later file modification. It does not reread those
+large payloads. Model weight and locked upload hashes retain their explicitly
+recorded earlier verification provenance.
+
+source-recovery/, logs, status.json, partial ready files and temporary files are
+excluded. The delivery manifest cannot contain its own hash. SHA256SUMS covers
+all listed payloads; delivery-manifest.json records SHA256SUMS' own hash.
+For a new complete byte-level recheck, `sha256sum -c SHA256SUMS` rereads every
+listed hidden-state payload. This is optional after the recorded full audit and
+is separate from the seal's metadata-only reuse policy.
+
+reproduction/commands.json and reproduce-postprocessing.sh record concrete CPU
+commands for the delivered output. The latter rewrites derived artifacts, so
+rerun the final seal afterward. Exact backend-independent floating-point identity
+is not claimed: preserve the frozen native execution specification and retain
+the independent numerical tolerances recorded by the validator.

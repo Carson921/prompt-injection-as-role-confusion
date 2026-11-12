@@ -1,0 +1,39 @@
+Hidden-state loading and row alignment
+
+Paths in hiddenstates-index.parquet are relative to the experiment output root.
+Each safetensors file stores only scored body positions. Baseline files store
+the union of the six first-role bodies; use the token table's source_role or
+role_target_positions in this stage's inputs.jsonl to choose a baseline role.
+The same token_position identifies the table row and the saved positions vector.
+body_token_offset starts at zero separately for each role body.
+
+Example (CPU; requires pandas, pyarrow, torch, safetensors):
+
+from pathlib import Path
+import pandas as pd
+from safetensors import safe_open
+
+ROOT = Path('/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/agentdojo-trace-interventions-20261112')
+STAGE = 'all'
+index = pd.read_parquet(ROOT / STAGE / "hiddenstates-index.parquet")
+entry = index.iloc[0]
+tokens = pd.read_parquet(ROOT / STAGE / "token-readouts.parquet",
+                         filters=[("input_id", "==", entry.input_id)])
+with safe_open(str(ROOT / entry.path), framework="pt", device="cpu") as saved:
+    positions = saved.get_tensor("positions")
+    original_positions = saved.get_tensor("original_positions")
+    token_ids = saved.get_tensor("token_ids")
+    # Load only the first two selected body rows from layer 18; dtype is BF16.
+    hidden = saved.get_slice("residual_layer_18")[:2]
+    assert tokens.token_position.tolist() == positions.tolist()
+    assert tokens.original_token_position.tolist() == original_positions.tolist()
+    assert tokens.token_id.tolist() == token_ids.tolist()
+
+Available tensors: embedding, residual_layer_00 ... residual_layer_35,
+final_norm (all BF16, N x 2880), pre_o_proj_heads_bf16 (N x 16 x 64),
+probe_features_fp16 (N x 1024), positions, original_positions, token_ids.
+N equals body_tokens in the index. Logits and probabilities are available in
+the original NPZ and token-readouts.parquet and were copied without recomputation.
+
+The index carries hashes recorded during inference. Export checks file sizes,
+headers and alignment vectors; it does not read and rehash all residual payloads.
