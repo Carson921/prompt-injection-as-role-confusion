@@ -1,0 +1,250 @@
+IPI Arena no-payload first-role interventions — fixed 2026-11-17 reproduction
+
+This document describes the final uniform WorldSim choice openai/gpt-4.1, with
+provider max_tokens=8192 and an accepted tool-response budget of12000 Unicode
+code points. Three superseded attempts are preserved independently, including their
+hash-bound attempt-source code and raw failures:
+  outputs/ipi-benign-trace-interventions-20261117-worldsim4096-attempt
+  outputs/ipi-benign-trace-interventions-20261117-worldsim-gemini8192-attempt
+  outputs/ipi-benign-trace-interventions-20261117-named-call-id-attempt
+Do not mix any superseded attempt's source traces, feedback, probe records or validations
+with this canonical GPT-4.1 run. The simulator choice was made from completion/
+transport diagnostics on the same clean requests, not from role-probe scores.
+Every formal task uses the same simulator; there is no per-task model fallback.
+The last superseded attempt leaked case names through generated administrative
+call IDs and a simulator echoed one into semantic content. The current collector
+uses only call_0001..call_0005 by generation step, asserts no history-ID collision,
+and keeps CURRENT_CALL/assistant/tool-reference IDs consistent. Original fixture
+IDs, prepared content, tool schemas and native initial IDs are unchanged. No
+retired trace is repaired by textual replacement: new collection and pilot
+feedback are required. The independent validator audits these ID references.
+The CPU render proof is collection/opaque-call-id-render-validation.json; changing
+only administrative IDs on30 saved requests changed no native input token.
+
+Scope and fixed materials
+-------------------------
+Use all 41 fixtures at ipi_arena_os commit
+9016bf431e90779692f0fb862871f81baf2de822: 18 tool, 15 coding, 8 browser.
+The empty injection slot defines a no-payload continuation; there is no separate
+upstream benign split. Browser inputs use the explicitly recorded text/HTML
+adaptation. The native system/developer headers and fixture analysis are produced
+by the pinned chat template. All selected first-role bodies remain original
+token IDs. Missing first source roles are NA, never generated or replaced.
+
+Keep source fixtures, prepared inputs, pilot selection, native collection code,
+source helper, parser, scorer, tokenizer/template, and checkpoint frozen. Changing
+any of them requires a new output root and new signatures. Do not edit frozen
+artifacts to make a resume check pass. No scenario tool is executed: shell,
+browser, file, mail, and other calls are recorded and sent only to WorldSim.
+
+The user's requested checkpoint address was:
+/home/wz55191/Github/SPAR/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/c4-dolma3-single-agentdojo-mixed-2080ti-20261103/checkpoint.npz
+That SPAR path is absent on this host. The actual file used by CLI defaults is:
+/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/c4-dolma3-single-agentdojo-mixed-2080ti-20261103/checkpoint.npz
+Its fixed identity is the same original checkpoint, verified by:
+SHA256 fe602209cab66a433c34978dab8b2e8157f372ca5fb1c7f6881882401a6ffa33
+
+The target/backbone is the checkpoint-bound native MXFP4 openai/gpt-oss-120b,
+not a substituted model. The original run uses two H100 80GB GPUs and the native
+eager attention equation with 256-query tiles. Native BF16 selected heads become
+checkpoint-compatible FP16 features before the fixed standardizer/exact-GELU MLP.
+Model weights are an external local dependency; provide a validated staging root
+with staging-proof.json and all checkpoint-bound tokenizer/config/weight shards.
+The scripts check all shard and asset commitments. The archived delivery's
+reproduction/model-assets and external-materials.json describe required external
+materials; they do not contain all model weights. Do not put API keys in reports
+or manifests. The WorldSim client reads existing environment credentials first,
+then only literal assignments in the user's .bashrc, without executing shell code.
+
+WorldSim policy
+---------------
+WorldSim is openai/gpt-4.1, temperature 0, max_tokens8192. Its system
+instruction bounds the response to 12000 characters and asks for an explicitly
+marked bounded prefix or task-relevant excerpt for long listings/DOM/code/logs.
+Established facts and task-critical identifiers/content must be retained; if that
+is impossible within the budget, return an explicit simulated output-limit error.
+The client accepts only nonempty normally stopped content within the character
+budget. Over-budget or length responses remain raw error evidence and are never
+locally clipped or converted into success. The collector tries at most four
+WorldSim requests per call. Only tool schemas, complete visible clean history,
+and the current call are supplied. Private generated analysis and fixture attack
+description/objective/judge/criteria are excluded. Provider responses/usage/errors
+are recorded. Remote temperature-zero responses can still vary across reruns.
+
+Output roots and preparation
+----------------------------
+Set task-specific variables; do not overwrite a sealed delivery:
+
+  set -euo pipefail
+  IPI_REPO=/scratch/wz55191/Github/prompt-injection-as-role-confusion
+  IPI_FROZEN="$IPI_REPO/experiments/role-analysis/outputs/ipi-benign-trace-interventions-20261117"
+  IPI_OUT=/scratch/wz55191/ipi-benign-reproduction-20261117
+  IPI_PREP_PY=/scratch/wz55191/venvs/chatinject-advagent-py312/bin/python
+  IPI_RUN_PY="$IPI_REPO/.venv/bin/python"
+  IPI_MODEL=/tmp/wz55191-agentdojo-first-tool-model
+  cd "$IPI_REPO"
+
+For a fresh native rerun, first verify the delivery's SHA256SUMS, restore the
+snapshot source/dependencies to the matching repository layout, and provide the
+external model staging root above. Create IPI_OUT only when it does not exist:
+
+  test ! -e "$IPI_OUT"
+  mkdir -p "$IPI_OUT"
+  cp -a "$IPI_FROZEN/prepared" "$IPI_OUT/prepared"
+  cp -a "$IPI_FROZEN/source-fixtures" "$IPI_OUT/source-fixtures"
+
+The copied prepared tree includes the frozen manifest, validation evidence, and
+pilot-selection.json. It is the canonical CPU input specification, not generated
+model output. Optional raw-fixture CPU regeneration goes into a SEPARATE fresh
+check directory, never the sealed prepared copy or an active collection root:
+
+  IPI_REGEN=/scratch/wz55191/ipi-benign-cpu-preparation-check-20261117
+  test ! -e "$IPI_REGEN"
+  "$IPI_PREP_PY" experiments/role-analysis/ipi_benign_source_data.py \
+    --output "$IPI_REGEN" --model /scratch/wz55191/models/gpt-oss-120b --date 2026-11-17
+  cmp "$IPI_FROZEN/prepared/manifest.json" "$IPI_REGEN/prepared/manifest.json"
+
+This requires the pinned upstream checkout at its original source path (or the
+--source-root argument) and the prepared environment versions in the manifest.
+Check every regenerated case and manifest hash against the delivered preparation
+before running a model. The preparation helper writes cases/source copies and a
+manifest; validation.json and pilot-selection.json are separate frozen records
+already provided in the canonical prepared copy. On a pre-existing output the
+helper rejects changed rendered inputs, but can rewrite identical preparation
+files and update a helper-only code binding. Therefore do not use it on the
+active or sealed output root. It does not silently rewrite the
+pilot-selection record. The selected pilot is fixed to ipi/leak-codebase-zip:
+951 initial tokens, first-body counts system71/developer698/user19/cot18/
+assistant20/tool3. It is the shortest initial prompt among all 41 with six
+nonempty first-role targets, ties lexicographic by case ID, chosen before this
+run's generation and probe scores. No custom --trace-id is supported by this
+fixed pilot/all pipeline.
+
+For exact analysis-only reproduction, use the already archived sources/*.jsonl,
+inputs, NPZ readouts, and Parquet exports with their manifests instead of making
+new remote WorldSim requests. Complete raw generation is conserved once in the
+retrospective trace, including CoT that later live requests may omit. Replaying
+that immutable source fixes the input; a fresh simulated collection need not
+reproduce the same source text byte for byte.
+
+Pilot collection, replay, audit, exports and plots
+-------------------------------------------------
+Commands below use the fixed collector budgets: max 5 target generations, each
+max_new_tokens4096, greedy decode. Provider/character budgets are explicitly
+recorded from frozen helper constants by collection/protocol.json.
+
+  "$IPI_RUN_PY" experiments/role-analysis/collect_ipi_benign_traces.py \
+    --output "$IPI_OUT" --stage pilot --model "$IPI_MODEL" --max-steps 5 --max-new-tokens 4096 --worldsim-model openai/gpt-4.1
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_body_provenance.py \
+    --output "$IPI_OUT" --stage pilot
+  "$IPI_RUN_PY" experiments/role-analysis/run_ipi_trace_interventions.py prepare \
+    --output "$IPI_OUT" --stage pilot --model "$IPI_MODEL"
+  "$IPI_RUN_PY" experiments/role-analysis/validate_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage pilot --inputs-only
+  "$IPI_RUN_PY" experiments/role-analysis/run_ipi_trace_interventions.py run \
+    --output "$IPI_OUT" --stage pilot --model "$IPI_MODEL"
+  "$IPI_RUN_PY" experiments/role-analysis/validate_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage pilot --probe-row-cap 0
+  "$IPI_RUN_PY" experiments/role-analysis/export_ipi_trace_readouts.py \
+    --output "$IPI_OUT" --stage pilot
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_readout_export.py \
+    --output "$IPI_OUT" --stage pilot
+  "$IPI_RUN_PY" experiments/role-analysis/analyze_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage pilot
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_intervention_statistics.py \
+    --output "$IPI_OUT" --stage pilot
+
+The provenance audit separately classifies initial_request as
+template_or_fixture_prefix, raw_generated as target_generation, and newly visible
+tool frames as simulated_tool_return. It reports header/body/ending origins,
+first-role support, absent vs empty-first-body, termination, and token-limit
+counts. A generated CoT/final can be context even if every first source body is
+from the prefix. Never describe such prefix targets as newly sampled reasoning.
+
+Feedback gate: actual delivery is required, not a fabricated marker
+----------------------------------------------------------------
+Inspect passed pilot audits and the actual results/figures, then deliver the
+single-trace feedback to the user. Only AFTER that actual delivery, preserve
+pilot/independent-validation.json as pilot/independent-validation-at-feedback.json
+and write pilot/feedback.json with:
+
+  feedback_delivered: true
+  delivered_at_utc: the actual delivery's ISO8601 timestamp
+  pilot_run_manifest_sha256: SHA256 of this run's pilot/run-manifest.json
+  pilot_validation_sha256: SHA256 of the validation snapshot at that delivery
+  feedback: the actual delivered summary, including its single-trace limitation
+
+Do not create this attestation in advance. Do not reuse any superseded
+attempt's feedback marker, including the named-call-ID GPT-4.1 attempt. The collector and all-stage preparer check this gate
+against the actual GPT-4.1 pilot run hash; final seal also checks the validation
+snapshot and its protocol/input bindings. A rerun that has not actually delivered
+feedback must stop at this gate, while preserving its completed pilot artifacts.
+
+All 41 tasks after actual pilot feedback
+---------------------------------------
+  "$IPI_RUN_PY" experiments/role-analysis/collect_ipi_benign_traces.py \
+    --output "$IPI_OUT" --stage all --model "$IPI_MODEL" --max-steps 5 --max-new-tokens 4096 --worldsim-model openai/gpt-4.1
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_body_provenance.py \
+    --output "$IPI_OUT" --stage all
+  "$IPI_RUN_PY" experiments/role-analysis/run_ipi_trace_interventions.py prepare \
+    --output "$IPI_OUT" --stage all --model "$IPI_MODEL"
+  "$IPI_RUN_PY" experiments/role-analysis/validate_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage all --inputs-only
+  "$IPI_RUN_PY" experiments/role-analysis/run_ipi_trace_interventions.py run \
+    --output "$IPI_OUT" --stage all --model "$IPI_MODEL"
+  "$IPI_RUN_PY" experiments/role-analysis/validate_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage all --probe-row-cap 0
+  "$IPI_RUN_PY" experiments/role-analysis/export_ipi_trace_readouts.py \
+    --output "$IPI_OUT" --stage all
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_readout_export.py \
+    --output "$IPI_OUT" --stage all
+  "$IPI_RUN_PY" experiments/role-analysis/analyze_ipi_trace_interventions.py \
+    --output "$IPI_OUT" --stage all
+  "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_intervention_statistics.py \
+    --output "$IPI_OUT" --stage all
+
+Report actual 41-trace completion/termination, per-role support and body origins,
+catalog use, model/WorldSim limitations, English plots, and actual artifact sizes
+in REPORT.zh-CN.md before final sealing. No missing source role is an observation
+of zero probability. The external cohort is not a training split. Means first
+average probabilities over a body's tokens, then equally weight eligible traces.
+The 2000 paired trace-bootstrap draws use seed20261112 and pointwise95% intervals;
+shared templates are not independently resampled families. Interventions are
+probe readout contrasts, not additive text/delimiter/position percentages or ASR.
+
+After BOTH stages, exports, independent complete validators, statistics audits,
+real feedback attestation and final report are complete:
+
+  "$IPI_RUN_PY" experiments/role-analysis/seal_ipi_trace_interventions.py --output "$IPI_OUT"
+
+Seal reuses the full hidden-payload SHA256 checks from the independent cap0
+validator; it does not needlessly stream the large residual payloads again.
+All other delivery files are hashed and the source/dependency/checkpoint/model
+asset commitments and this reproduction text are snapshotted. Treat the sealed
+tree as immutable; make a fresh root for any further experiment.
+
+Resume semantics
+----------------
+Do not rerun a stage's prepare command after inputs/protocol are frozen; it
+intentionally refuses to refreeze. Resume with the same collect or run command.
+Collection signatures bind the prepared case, protocol and collection code.
+Completed matching cases are reused, including the actual pilot during all-stage
+collection. An unsuccessful case is preserved as an attempt record before retry.
+New remote simulator calls on a failed-case retry may differ; both attempts stay
+auditable. Never copy a partial generated response into a success tool return.
+
+Replay signatures bind exact input/target/original coordinates, source trace,
+wrapper catalog, runtime code and checkpoint. Completed matching per-input NPZ,
+hiddenstate and record caches can be reused. Resume cache presence alone is not
+full integrity verification: rerun the independent cap0 validator after the stage
+is complete to stream all BF16 payloads, check all36 residual layers plus embedding
+and final norm, and independently recompute every probe row. The separate Parquet
+auditor compares every saved float32 logit/probability bit pattern and coordinate
+against NPZ without rereading full residual payloads. Do not patch signatures,
+use positive probe-row-cap for a final audit, or claim success for incomplete data.
+
+Hiddenstate scope is selected first-role body tokens only. Baseline stores the
+union of present first-role bodies; each variant stores its manipulated body.
+The index gives exact paths/bytes/SHA and layer coverage. These are not hidden
+states for every token of the full conversation. Keep the original immutable
+source traces, collection records and stopping metadata alongside all readouts.
