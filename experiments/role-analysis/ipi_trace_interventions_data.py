@@ -72,7 +72,8 @@ def _header_role(header_ids: Sequence[int], tokenizer: Any) -> dict[str, Any]:
 
 def parse_native_blocks(input_ids: Sequence[int], tokenizer: Any, *,
                         allow_open_header: bool = True,
-                        allow_terminal_body: bool = False) -> list[dict[str, Any]]:
+                        allow_terminal_body: bool = False,
+                        opaque_terminal_start: int | None = None) -> list[dict[str, Any]]:
     """Parse strict, contiguous Harmony blocks without changing any token ID.
 
     Only an optional trailing assistant header may be incomplete. An unfinished
@@ -85,9 +86,35 @@ def parse_native_blocks(input_ids: Sequence[int], tokenizer: Any, *,
     ``complete=True`` as a bounded observed frame,
     ``terminated=False``, and no invented closing token. The source extractor
     must separately establish its audited length-limited generation provenance.
+    An authoritative ``opaque_terminal_start`` instead preserves the failed
+    final response, including its current open assistant header, as uninterpreted
+    ``opaque_ids``. The prefix remains strict and must end in a complete frame.
+    No token in this suffix supplies a source role, body, or replacement wrapper.
     """
     ids = _token_list(input_ids)
     require(bool(ids), "A native trace must contain at least one token")
+    if opaque_terminal_start is not None:
+        require(isinstance(opaque_terminal_start, numbers.Integral) and
+                not isinstance(opaque_terminal_start, bool) and 0 <= opaque_terminal_start < len(ids),
+                "Opaque terminal start must point inside the original token stream")
+        opaque_terminal_start = int(opaque_terminal_start)
+        require(not allow_terminal_body, "Opaque context and an annotated terminal body are mutually exclusive")
+        require(ids[opaque_terminal_start] == START, "Opaque suffix must start at its authoritative native header")
+        blocks = (parse_native_blocks(ids[:opaque_terminal_start], tokenizer, allow_open_header=False)
+                  if opaque_terminal_start else [])
+        blocks.append(dict(block_index=len(blocks), start=opaque_terminal_start,
+                           header_end=opaque_terminal_start, body_start=opaque_terminal_start,
+                           body_end=opaque_terminal_start, end=len(ids),
+                           header_ids=[], body_ids=[], ending_ids=[],
+                           opaque_ids=ids[opaque_terminal_start:], opaque=True,
+                           role=None, header_text=None, channel=None, recipient=None,
+                           structural_tool_call=True, complete=False, terminated=False,
+                           observed_terminal_body=False))
+        require([token for block in blocks for token in
+                 (block["opaque_ids"] if block.get("opaque") else
+                  block["header_ids"] + block["body_ids"] + block["ending_ids"])] == ids,
+                "Opaque parser failed token conservation")
+        return blocks
     blocks, cursor = [], 0
     while cursor < len(ids):
         start = cursor
@@ -249,7 +276,17 @@ def build_interventions(trace: Mapping[str, Any], tokenizer: Any,
     require(isinstance(allow_terminal, bool), "allow_terminal_body must be a boolean")
     require(not allow_terminal or _length_limited(trace),
             "A terminal observed body needs raw eof_finish_reason='length' provenance")
-    blocks = parse_native_blocks(ids, tokenizer, allow_terminal_body=allow_terminal)
+    opaque_start = trace.get("opaque_terminal_start")
+    if opaque_start is not None:
+        provenance = trace.get("provenance", {})
+        invalid = provenance.get("invalid_native_response", {})
+        require(provenance.get("terminal_reason") == "invalid_native_response"
+                and invalid.get("opaque_terminal_start") == opaque_start
+                and invalid.get("type") in ("ValueError", "JSONDecodeError")
+                and isinstance(invalid.get("message"), str),
+                "Opaque terminal context needs its exact authoritative native response error provenance")
+    blocks = parse_native_blocks(ids, tokenizer, allow_terminal_body=allow_terminal,
+                                 opaque_terminal_start=opaque_start)
     require(any(block["observed_terminal_body"] for block in blocks) == allow_terminal,
             "Terminal-body flag must describe the actual observed token stream")
     targets = first_role_targets(blocks, require_all_roles=require_all_roles)
@@ -273,6 +310,9 @@ def build_interventions(trace: Mapping[str, Any], tokenizer: Any,
                  target_token_count=len(union), original_input_tokens=len(ids), input_tokens=len(ids),
                  target_roles=list(targets), complete_blocks_end=complete_end,
                  role_availability=availability,
+                 opaque_terminal_start=opaque_start, original_opaque_terminal_start=opaque_start,
+                 trace_has_opaque_terminal=opaque_start is not None,
+                 trailing_opaque_ids=ids[opaque_start:] if opaque_start is not None else [],
                  observed_terminal_body=any(block["observed_terminal_body"] for block in blocks),
                  trace_has_observed_terminal_body=any(block["observed_terminal_body"] for block in blocks),
                  trailing_open_header_ids=ids[complete_end:])]
@@ -292,6 +332,11 @@ def build_interventions(trace: Mapping[str, Any], tokenizer: Any,
         if -1 in token_origins:
             require(operation == "swap" and extra["wrapper_provenance"]["kind"] == "pilot_catalog",
                     "Only explicitly attributed catalog wrapper tokens may lack source positions")
+        new_opaque_start = None if opaque_start is None else len(new_ids) - (len(ids) - opaque_start)
+        if opaque_start is not None:
+            require(new_ids[new_opaque_start:] == ids[opaque_start:] and
+                    token_origins[new_opaque_start:] == origins[opaque_start:],
+                    "An intervention changed the unannotated opaque suffix")
         suffix = operation + "-" + role + ("-to-" + destination_role if destination_role else "")
         rows.append(dict(input_id=prefix + "--" + suffix, trace_id=trace_id, operation=operation,
                          source_role=role, destination_role=destination_role,
@@ -307,6 +352,9 @@ def build_interventions(trace: Mapping[str, Any], tokenizer: Any,
                          source_block_terminated=block["terminated"],
                          trace_has_observed_terminal_body=any(item["observed_terminal_body"] for item in blocks),
                          role_availability=availability,
+                         opaque_terminal_start=new_opaque_start, original_opaque_terminal_start=opaque_start,
+                         trace_has_opaque_terminal=opaque_start is not None,
+                         trailing_opaque_ids=ids[opaque_start:] if opaque_start is not None else [],
                          target_roles=[role], **extra))
 
     for role, block in targets.items():

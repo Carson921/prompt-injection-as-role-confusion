@@ -305,6 +305,11 @@ def generated_documents(root, delivery, selected, omitted, external):
               "Movement also changes preceding context. These effects are not normalized contribution percentages "
               "and do not measure task success or behavioral attack success. The retrospective traces retain "
               "observed historical reasoning and can differ from later live model requests.", "",
+              "If the final native response fails parsing, its complete raw generation and current open header "
+              "are retained as an unlabelled opaque suffix. No token from that suffix supplies a source body, "
+              "role label or replacement wrapper, and no later WorldSim response is produced. Movement uses "
+              "the farthest eligible parsed-prefix boundary before the suffix. Panel C divides the displayed "
+              "body start by the full observed trace length, including any opaque suffix.", "",
               "Missing or empty first source bodies remain NA with their actual support. Each present source "
               "is swapped to all five alternative wrappers; a frozen pilot catalog supplies a destination wrapper "
               "only when the same trace lacks it. Tokens are averaged within each source body and traces receive "
@@ -330,7 +335,8 @@ def generated_documents(root, delivery, selected, omitted, external):
         lines += ["Newly generated tool-call identifiers use opaque step IDs (`call_0001` through `call_0005`), "
                   "with collisions against fixture/history IDs rejected. Case names are not embedded in these "
                   "generated identifiers. The [identifier rendering check](collection/opaque-call-id-render-validation.json) "
-                  "preserves the CPU evidence for this policy.", ""]
+                  "preserves the CPU evidence for this policy. That render check uses archived administrative "
+                  "fields solely to test token invariance; retired traces are excluded from the formal results.", ""]
     for stage in ("pilot", "all"):
         tables = [f"[{name}]({stage}/{name})" for name in ("token-readouts.parquet", "hiddenstates-index.parquet")
                   if f"{stage}/{name}" in selected]

@@ -58,7 +58,8 @@ def prepare(args):
     if not catalog_path.exists():
         assert args.stage=='pilot'
         trace=next(r for r in records if r['trace_id']==pilot)
-        blocks=data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace.get('allow_terminal_body',False))
+        blocks=data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace.get('allow_terminal_body',False),
+            opaque_terminal_start=trace.get('opaque_terminal_start'))
         targets=data.first_role_targets(blocks,require_all_roles=True)
         catalog={role:dict(header_ids=block['header_ids'],ending_ids=block['ending_ids'],
             source_trace_id=pilot,source_block_index=block['block_index'],eof_finish_reason=trace['eof_finish_reason'])
@@ -71,7 +72,8 @@ def prepare(args):
     selected=sorted(records,key=lambda r:(r['trace_id']!=pilot,r['trace_id']))
     rows=[];inventory=[]
     for trace in selected:
-        blocks=data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace.get('allow_terminal_body',False))
+        blocks=data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace.get('allow_terminal_body',False),
+            opaque_terminal_start=trace.get('opaque_terminal_start'))
         targets=data.first_role_targets(blocks,require_all_roles=False)
         variants=data.build_interventions(trace,tok,catalog)
         assert len(variants)==1+7*len(targets)
@@ -99,6 +101,7 @@ def prepare(args):
         expected_summary_rows=sum(len(r['role_target_positions']) for r in rows),inventory=inventory,
         interventions_per_present_role=dict(strip=1,swap=5,move=1),
         first_occurrence='First ordinary frame only; empty first body remains missing; structural tool calls are context.',
+        invalid_response_policy='An independently reproduced final native parse error preserves the entire current response/open header as opaque context; no source/wrapper labels or simulated response. Movement ends before this suffix.',
         wrapper_policy='Same-trace first observed native wrapper preferred; missing destination uses frozen pilot-native catalog. Missing source is NA.',
         context='Retrospective fixture prefix plus complete raw generation; preserves historical CoT, differs from final live request.',
         measurement='Mean token six-class softmax within frozen original body, then equal trace means.',

@@ -144,6 +144,10 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
     require(len(sources) == manifest["traces"] and len({row["trace_id"] for row in sources}) == len(sources),
             "Source trace inventory differs")
     prepared_rows = {row["case_id"]: row for row in prepared_manifest["rows"]}
+    source_cases = [row["provenance"]["collection_case"] for row in sources]
+    expected_cases = ({collection["pilot_case_id"]} if stage == "pilot" else set(prepared_rows))
+    require(len(set(source_cases)) == len(source_cases) and set(source_cases) == expected_cases,
+            "Source case names differ from the fixed complete stage inventory")
     body_rows, trace_rows = [], []
     role_support, missing = Counter(), defaultdict(Counter)
     origin_traces, origin_tokens, header_tokens = defaultdict(Counter), defaultdict(Counter), defaultdict(Counter)
@@ -154,6 +158,10 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
         case_path = output / "collection/cases" / (case_id + ".json")
         case, spec = read(case_path), prepared_rows[case_id]
         prepared = read(output / spec["path"])
+        require(source["trace_id"] == spec["trace_id"]
+                and source["category"] == spec["category"]
+                and source["source_split"] == "external",
+                "Source identity/category/external cohort differs from prepared inventory")
         require(sha(case_path) == manifest["cases"][case_id]["sha256"]
                 and sha(output / spec["path"]) == spec["sha256"], "Case/prepared binding differs")
         require(case["status"] == "complete" and case["trace"] == source
@@ -164,8 +172,15 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
                 "Chronological source reconstruction differs")
         require(all(len(step["generated_ids"]) <= collection["max_new_tokens"] for step in case["steps"])
                 and len(case["steps"]) <= collection["max_steps"], "Generation budget exceeded")
+        opaque_start = source.get("opaque_terminal_start")
         blocks = native.parse_native_blocks(ids, tokenizer,
-                    allow_terminal_body=source.get("allow_terminal_body", False))
+                    allow_terminal_body=source.get("allow_terminal_body", False),
+                    opaque_terminal_start=opaque_start)
+        if opaque_start is not None:
+            require(blocks[-1].get("opaque") is True
+                    and blocks[-1]["start"] == opaque_start
+                    and blocks[-1]["opaque_ids"] == ids[opaque_start:],
+                    "Opaque terminal suffix was not preserved exactly")
         first = {}
         for block in blocks:
             if block["complete"] and not block["structural_tool_call"] and block["role"] in native.ROLES:
@@ -177,6 +192,8 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
             row = dict(trace_id=source["trace_id"], category=source["category"], source_role=role,
                        availability=availability, scored=availability == "present")
             if block is not None:
+                require(opaque_start is None or block["end"] <= opaque_start,
+                        "A first-role source overlaps uninterpreted terminal context")
                 bc, bs = overlap(block["body_start"], block["body_end"], segments)
                 hc, hs = overlap(block["start"], block["body_start"], segments)
                 ec, es = overlap(block["body_end"], block["end"], segments)
@@ -208,6 +225,8 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
             trace_tokens=len(ids), initial_request_tokens=len(prepared["initial_input_ids"]),
             generations=len(case["steps"]), raw_generated_tokens=sum(len(x["generated_ids"]) for x in case["steps"]),
             terminal_reason=case["terminal_reason"], eof_finish_reason=source["eof_finish_reason"],
+            opaque_terminal_start=opaque_start,
+            opaque_terminal_tokens=len(ids)-opaque_start if opaque_start is not None else 0,
             observed_terminal_body=last["observed_terminal_body"], last_frame_role=last["role"],
             last_frame_structural_tool_call=last["structural_tool_call"],
             last_generation_tokens=len(case["steps"][-1]["generated_ids"]),
@@ -220,6 +239,9 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
         collection_protocol_sha256=sha(collection_path), prepared_manifest_sha256=sha(prepared_path),
         tokenizer_sha256=sha(model / "tokenizer.json"),
         source_origin_definitions=ORIGINS,
+        fixed_stage_case_inventory_verified=True,
+        categories=dict(Counter(row["category"] for row in sources)),
+        source_splits=dict(Counter(row["source_split"] for row in sources)),
         origin_caveat="Prefix means native template OR fixture. Generated CoT/final can be context even when all selected first bodies are from the prefix. Header and ending origins are counted separately; a generated frame can have an initial-request assistant header prefix.",
         exact_chronological_token_reconstruction=True, first_ordinary_frame_only=True,
         role_support={role: role_support[role] for role in native.ROLES},
@@ -232,6 +254,9 @@ def audit(output: Path, stage: str, model: Path | None = None, *, write_outputs:
         first_frame_header_origin_token_counts={role: dict(header_tokens[role]) for role in native.ROLES},
         terminal_reasons=dict(endings), eof_finish_reasons=dict(eof_reasons),
         total_raw_generated_tokens=sum(row["raw_generated_tokens"] for row in trace_rows),
+        opaque_terminal_traces=sum(row["opaque_terminal_start"] is not None for row in trace_rows),
+        opaque_terminal_tokens=sum(row["opaque_terminal_tokens"] for row in trace_rows),
+        opaque_terminal_policy="The entire unparseable final generation and its actual open-header prefix are preserved as uninterpreted context, excluded from source/wrapper selection. Move-end is the final verified native boundary before that suffix.",
         max_new_tokens=collection["max_new_tokens"], max_steps=collection["max_steps"],
         trace_inventory=trace_rows, first_body_inventory=body_rows)
     if not write_outputs:

@@ -37,6 +37,30 @@ P_COLUMNS = core.P_COLUMNS
 EXPECTED_TRACES = {"pilot": 1, "all": 41}
 
 
+def validate_opaque_target_mask(row: dict, positions=None) -> bool:
+    """Check authoritative suffix coordinates without decoding or parsing it."""
+    boundary = row.get("opaque_terminal_start")
+    declared = row.get("trace_has_opaque_terminal", False)
+    original_boundary = row.get("original_opaque_terminal_start")
+    suffix = row.get("trailing_opaque_ids", [])
+    if boundary is None:
+        if declared or original_boundary is not None or suffix:
+            raise ValueError("Opaque suffix metadata lacks its authoritative boundary")
+        return False
+    ids, origins = row["input_ids"], row["token_source_positions"]
+    if (declared is not True or not isinstance(boundary, int) or isinstance(boundary, bool)
+            or not isinstance(original_boundary, int) or isinstance(original_boundary, bool)
+            or not 0 <= boundary < len(ids) or original_boundary < 0
+            or len(origins) != len(ids) or not suffix or ids[boundary:] != suffix
+            or origins[boundary:] != list(range(original_boundary, original_boundary + len(suffix)))):
+        raise ValueError("Opaque suffix coordinates, tokens or original ownership differ")
+    selected = row["target_positions"] if positions is None else positions
+    if (any(int(position) >= boundary for position in selected)
+            or any(int(position) >= original_boundary for position in row["target_original_positions"])):
+        raise ValueError("An unlabelled opaque suffix token was selected as a source body")
+    return True
+
+
 def read_and_validate(path: Path, stage: str) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Check the external cohort and all eight readouts per present source body."""
     frame = pd.read_csv(path, dtype={"input_id": str, "trace_id": str}, keep_default_na=False)
@@ -146,6 +170,8 @@ def ipi_presentation():
     def save_figure(fig, destination, name):
         for text in fig.texts:
             text.set_text(text.get_text().replace("native benign AgentDojo traces", "clean IPI Arena traces"))
+        for ax in fig.axes:
+            ax.title.set_text(ax.get_title().replace("farthest trace boundary", "farthest parsed boundary"))
         return old_save(fig, destination, name)
 
     def make_figure(title, subtitle, footer):
@@ -194,6 +220,7 @@ def load_token_curves(root: Path, stage: str, frame: pd.DataFrame) -> tuple[dict
             with np.load(path, allow_pickle=False) as data:
                 positions, original, token_ids = [data[name].copy() for name in ("positions", "original_positions", "token_ids")]
                 probability, roles = data["probabilities"].astype(float), data["roles"].tolist()
+            validate_opaque_target_mask(record, positions)
             if roles != list(ROLES) or not np.array_equal(positions, record["target_positions"]) or not np.array_equal(original, record["target_original_positions"]):
                 raise ValueError(f"{input_id}: class order or coordinate map differs")
             if not np.array_equal(token_ids, np.asarray(record["input_ids"], dtype=np.int64)[positions]):
@@ -247,10 +274,13 @@ def analyze(root: Path, stage: str, *, token_curves: bool = True) -> dict[str, A
         validation["protocol_sha256"] = core.sha256(protocol_path)
     inputs_path = stage_root / "inputs.jsonl"
     if inputs_path.is_file():
-        availability, wrapper_provenance = {}, Counter()
+        availability, wrapper_provenance, opaque_inputs, opaque_traces = {}, Counter(), 0, set()
         with inputs_path.open() as stream:
             for line in stream:
                 row = json.loads(line)
+                if validate_opaque_target_mask(row):
+                    opaque_inputs += 1
+                    opaque_traces.add(row["trace_id"])
                 if row["operation"] == "baseline" and "role_availability" in row:
                     availability[row["trace_id"]] = row["role_availability"]
                 if row["operation"] == "swap":
@@ -259,6 +289,9 @@ def analyze(root: Path, stage: str, *, token_curves: bool = True) -> dict[str, A
         validation["inputs_sha256"] = core.sha256(inputs_path)
         validation["native_role_availability"] = availability
         validation["swap_wrapper_provenance_counts"] = dict(wrapper_provenance)
+        validation["opaque_terminal_context"] = dict(traces=len(opaque_traces), inputs=opaque_inputs,
+            selected_suffix_tokens=0, target_masks_checked_without_native_reparse=True,
+            policy="Entire final failed generation/open header is unlabelled context; eligible movement ends before it")
     analysis_root = stage_root / "analysis"
     analysis_root.mkdir(parents=True, exist_ok=True)
     core.write_json(analysis_root / "validation.json", validation)
@@ -274,6 +307,8 @@ def analyze(root: Path, stage: str, *, token_curves: bool = True) -> dict[str, A
             "IPI is one external dataset cohort; no FIT/DEV/TEST split or training-trace support is fabricated.",
             "A missing source role is NA. Alternative wrappers may use the frozen pilot catalog when absent from the same trace.",
             "Shared fixture templates can correlate tasks; trace-bootstrap intervals are not template-family uncertainty estimates.",
+            "A final invalid_native_response is retained with its open header as opaque context. Its tokens supply no role labels, source bodies or replacement wrappers, and no later simulated tool response is generated.",
+            "Movement ends at the farthest eligible parsed-prefix boundary, before any open header or opaque terminal suffix; displayed positions are divided by the full observed trace length, including that suffix.",
         ])
         core.write_json(destination / "report-data.json", report)
         if token_curves:

@@ -166,6 +166,59 @@ class IPIInterventionTests(unittest.TestCase):
             expected, _ = min(candidates, key=lambda item: (-abs(item[0] - source["body_start"]), item[0]))
             self.assertEqual(row["new_body_start"], expected)
 
+    def test_failed_final_response_is_opaque_context_never_a_target_or_wrapper(self):
+        prefix = self.trace(("system", "developer", "user", "tool"))["input_ids"]
+        # A valid-looking CoT before the malformed header remains in the same
+        # rejected response and is conservatively left entirely unannotated.
+        suffix = (self.block("cot", [7011, 7012]) + self.block("assistant", [7021], ending=[data.CALL],
+                  header="assistant<|channel|>analysis to=functions.native_tool<|channel|>commentary"))
+        trace = dict(trace_id="opaque", input_ids=prefix + suffix, opaque_terminal_start=len(prefix),
+                     allow_terminal_body=False, eof_finish_reason="stop",
+                     provenance=dict(terminal_reason="invalid_native_response", invalid_native_response=dict(
+                         type="ValueError", message="Multiple native channels", step=1, opaque_terminal_start=len(prefix))))
+        with self.assertRaisesRegex(ValueError, "Multiple native channels"):
+            data.parse_native_blocks(trace["input_ids"], self.tok)
+        blocks = data.parse_native_blocks(trace["input_ids"], self.tok, opaque_terminal_start=len(prefix))
+        opaque = blocks[-1]
+        self.assertEqual(opaque["opaque_ids"], suffix)
+        self.assertFalse(opaque["complete"])
+        self.assertIsNone(opaque["role"])
+        self.assertTrue(opaque["structural_tool_call"])
+        self.assertEqual(opaque["header_ids"] + opaque["body_ids"] + opaque["ending_ids"], [])
+        self.assertEqual(set(data.first_role_targets(blocks)), {"system", "developer", "user", "tool"})
+        rows = data.build_interventions(trace, self.tok, self.catalog)
+        self.assertEqual(len(rows), 29)
+        self.assertEqual(rows[0]["complete_blocks_end"], len(prefix))
+        self.assertEqual(rows[0]["role_availability"]["cot"], "absent")
+        for row in rows:
+            self.assertEqual(row["input_ids"][row["opaque_terminal_start"]:], suffix)
+            self.assertEqual(row["token_source_positions"][row["opaque_terminal_start"]:],
+                             list(range(len(prefix), len(trace["input_ids"]))))
+            self.assertLess(row["target_positions"][-1], row["opaque_terminal_start"])
+            if row["operation"] == "swap" and row["destination_role"] in ("cot", "assistant"):
+                self.assertEqual(row["wrapper_provenance"]["kind"], "pilot_catalog")
+        self.assert_body_ownership(trace, rows)
+
+    def test_opaque_offset_requires_a_closed_prefix_and_authoritative_error_provenance(self):
+        trace = self.trace()
+        original = trace["input_ids"]
+        suffix = [data.START] + self.tok.encode("assistant") + [data.MESSAGE, 1701, data.RETURN]
+        trace["input_ids"] = original + suffix
+        start = len(original)
+        for offset in (-1, True, start + 1, len(trace["input_ids"]), start - 1):
+            with self.subTest(offset=offset), self.assertRaises(ValueError):
+                data.parse_native_blocks(trace["input_ids"], self.tok, opaque_terminal_start=offset)
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
+            data.parse_native_blocks(trace["input_ids"], self.tok, opaque_terminal_start=start, allow_terminal_body=True)
+        trace["opaque_terminal_start"] = start
+        with self.assertRaisesRegex(ValueError, "error provenance"):
+            data.build_interventions(trace, self.tok, self.catalog)
+        # A delimiter inside an original body cannot become an authoritative
+        # boundary by merely attaching opaque metadata.
+        broken = self.block("user", [1701])[:-1] + suffix
+        with self.assertRaisesRegex(ValueError, "Unterminated native body"):
+            data.parse_native_blocks(broken, self.tok, opaque_terminal_start=len(broken) - len(suffix))
+
 
 if __name__ == "__main__":
     unittest.main()

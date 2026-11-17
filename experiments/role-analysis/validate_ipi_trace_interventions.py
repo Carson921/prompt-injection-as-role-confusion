@@ -82,12 +82,55 @@ class HeaderDecoder:
 
     def __call__(self, ids):
         text = "".join(self.tokens[value] for value in ids)
-        return bytes(self.bytes[character] for character in text).decode("utf-8")
+        return bytes(self.bytes[character] for character in text).decode("utf-8", errors="replace")
 
 
-def original_frames(ids, decoder, allow_terminal_body):
-    """Independent sequential frame reader, with a single explicitly opted-in EOF."""
-    frames, cursor = [], 0
+def independent_header(head):
+    """Six-role grammar oracle; repeated channels and recipients remain invalid."""
+    parts = head.split("<|channel|>")
+    require(len(parts) <= 2, "Native header has repeated channel metadata")
+    base = parts[0].strip()
+    channel = parts[1].strip().split()[0] if len(parts) == 2 and parts[1].strip() else None
+    recipients = re.findall(r"(?:^|\s)to=([^\s<]+)", head.replace("<|channel|>", " "))
+    require(len(recipients) <= 1, "Native header has repeated recipients")
+    recipient = recipients[0] if recipients else None
+    structural = False
+    if base in ("system", "developer", "user"):
+        require(channel is None and recipient is None, "Ordinary native role has channel/recipient metadata")
+        role = base
+    elif base.startswith("functions."):
+        require(base.split()[0] != "functions.", "Empty native tool name")
+        role = "tool"
+    elif base and base.split(maxsplit=1)[0] == "assistant":
+        if recipient is not None:
+            role, structural = None, True
+        elif channel == "analysis":
+            role = "cot"
+        else:
+            require(channel in (None, "final", "commentary"), "Unsupported assistant channel")
+            role = "assistant"
+    else:
+        raise AssertionError("Unknown native role header: " + repr(head))
+    return role, structural, recipient
+
+
+def original_frames(ids, decoder, allow_terminal_body, opaque_terminal_start=None, *,
+                    require_targets=True, allow_open_header=True):
+    """Strict sequential frames; an audited failed final response stays opaque."""
+    if opaque_terminal_start is not None:
+        require(isinstance(opaque_terminal_start, int) and not isinstance(opaque_terminal_start, bool)
+                and 0 <= opaque_terminal_start < len(ids) and ids[opaque_terminal_start] == START,
+                "Opaque terminal span has an invalid native start")
+        require(not allow_terminal_body, "Opaque context cannot also be an annotated observed terminal body")
+        frames, _, _ = original_frames(ids[:opaque_terminal_start], decoder, False,
+                                        require_targets=False, allow_open_header=False)
+        frames.append(dict(start=opaque_terminal_start, body_start=opaque_terminal_start,
+                           body_end=opaque_terminal_start, end=len(ids), role=None, structural=True,
+                           recipient=None, complete=False, terminated=False, opaque=True,
+                           opaque_ids=ids[opaque_terminal_start:]))
+        cursor = len(ids)
+    else:
+        frames, cursor = [], 0
     while cursor < len(ids):
         start = cursor
         require(ids[cursor] == START, f"Original trace has unparsed token {cursor}")
@@ -96,22 +139,12 @@ def original_frames(ids, decoder, allow_terminal_body):
             require(ids[cursor] not in (*CLOSERS, START), "Malformed original native header")
             cursor += 1
         head = decoder(ids[start + 1:cursor])
-        # Recipient declarations take precedence over analysis/final channels.
-        structural = head.startswith("assistant") and bool(re.search(r"(?:^|\s)to=", head))
-        if head.startswith("functions."):
-            role = "tool"
-        elif structural:
-            role = None
-        elif head.startswith("assistant"):
-            role = "cot" if "<|channel|>analysis" in head else "assistant"
-        elif head in ("system", "developer", "user"):
-            role = head
-        else:
-            raise AssertionError(f"Unknown original native header: {head!r}")
+        role, structural, recipient = independent_header(head)
         if cursor == len(ids):
-            require(head == "assistant", "Only an open assistant generation header may trail a trace")
+            require(allow_open_header and head == "assistant", "Only an opted-in open assistant generation header may trail a trace")
             frames.append(dict(start=start, body_start=cursor, body_end=cursor, end=cursor,
-                               role=role, structural=False, complete=False, terminated=False))
+                               role=role, structural=False, recipient=recipient,
+                               complete=False, terminated=False))
             break
         body_start = cursor + 1
         cursor = body_start
@@ -126,7 +159,7 @@ def original_frames(ids, decoder, allow_terminal_body):
             require(ids[cursor] != RETURN or role == "assistant", "Original return marker belongs to wrong role")
         frames.append(dict(start=start, body_start=body_start, body_end=cursor,
                            end=cursor + int(terminated), role=role, structural=structural,
-                           complete=True, terminated=terminated))
+                           recipient=recipient, complete=True, terminated=terminated))
         cursor += int(terminated)
     first, first_normal = {}, {}
     for index, frame in enumerate(frames):
@@ -134,8 +167,56 @@ def original_frames(ids, decoder, allow_terminal_body):
         if frame["complete"] and not frame["structural"] and frame["role"] in ROLES:
             first_normal.setdefault(frame["role"], frame)
     first = {role: frame for role, frame in first_normal.items() if frame["body_end"] > frame["body_start"]}
-    require(bool(first), "Original trace has no nonempty normal role targets")
+    require(not require_targets or bool(first), "Original trace has no nonempty normal role targets")
     return frames, first, first_normal
+
+
+def independent_response_error(step, decoder, expected_parsed=None):
+    """Reproduce response rejection without importing production parsing code."""
+    ids = step["generation_prefix_ids"] + step["generated_ids"]
+    try:
+        frames, _, _ = original_frames(ids, decoder, step["finish_reason"] == "length",
+                                        require_targets=False, allow_open_header=False)
+        calls, incomplete, reasoning, final = [], [], [], []
+        for frame in frames:
+            body_ids = ids[frame["body_start"]:frame["body_end"]]
+            content = decoder(body_ids)
+            if frame["structural"]:
+                if not frame["terminated"]:
+                    incomplete.append(dict(recipient=frame["recipient"], raw_arguments=content,
+                                           body_ids=body_ids, block_index=frame["block_index"]))
+                    continue  # Observed length-censored JSON is context, never a call.
+                arguments = json.loads(content)
+                if not isinstance(arguments, dict):
+                    raise ValueError("Native tool arguments are not a JSON object")
+                if not frame["recipient"].startswith("functions."):
+                    raise ValueError("Native call recipient is outside the function namespace")
+                calls.append(dict(name=frame["recipient"][len("functions."):], arguments=arguments,
+                                  raw_arguments=content, body_ids=body_ids, block_index=frame["block_index"]))
+            elif frame["role"] == "cot":
+                reasoning.append(content)
+            elif frame["role"] == "assistant":
+                final.append(content)
+            else:
+                raise ValueError("Native response contains a non-assistant role")
+        if expected_parsed is not None:
+            saved_calls = [{key: value for key, value in call.items() if key != "id"}
+                           for call in expected_parsed["tool_calls"]]
+            require(obj_sha(saved_calls) == obj_sha(calls),
+                    "Saved tool-call name/JSON/body IDs/frame index differ from raw native response")
+            expected = dict(incomplete_tool_calls=incomplete,
+                            content="\n".join(final) if final else None,
+                            reasoning="\n".join(reasoning) if reasoning else None,
+                            generation_prefix_ids=step["generation_prefix_ids"], raw_generated_ids=step["generated_ids"],
+                            observed_terminal_body=any(not frame["terminated"] for frame in frames),
+                            finish_reason=step["finish_reason"])
+            require(all(obj_sha(expected_parsed[key]) == obj_sha(value) for key, value in expected.items()),
+                    "Saved parsed response content/incomplete-call provenance differs from raw native IDs")
+    except json.JSONDecodeError as error:
+        return dict(type="JSONDecodeError", message=str(error))
+    except (AssertionError, ValueError) as error:
+        return dict(type="ValueError", message=str(error))
+    return None
 
 
 def rooted_path(value):
@@ -183,6 +264,11 @@ def audit_opaque_call_references(record, fixture, collection, case_names):
     for index, step in enumerate(record["steps"], 1):
         require(step["step"] == index and step["messages"] == history,
                 "Saved live history has inconsistent generated call/tool-response references")
+        if "parse_error" in step:
+            require(index == len(record["steps"]) and record["terminal_reason"] == "invalid_native_response"
+                    and "parsed_response" not in step and not step["worldsim"],
+                    "An invalid native response was interpreted or simulated")
+            continue
         parsed = step["parsed_response"]
         calls = parsed["tool_calls"]
         terminal = (step["finish_reason"] == "length" or not calls
@@ -225,7 +311,7 @@ def audit_opaque_call_references(record, fixture, collection, case_names):
     return generated_count
 
 
-def audit_collection(output, stage_name, protocol):
+def audit_collection(output, stage_name, protocol, decoder):
     """Rebuild chronological sources directly from committed raw generation IDs."""
     manifest_path = output / "sources" / (stage_name + "-collection-manifest.json")
     require(sha(manifest_path) == protocol["source_collection_manifest_sha256"],
@@ -254,6 +340,7 @@ def audit_collection(output, stage_name, protocol):
     require(manifest["traces"] == len(sources) == len(manifest["cases"]), "Raw collection trace inventory differs")
     require("tool_call_id_policy" in collection, "Frozen collection omits its opaque call-ID policy")
     case_ids, raw_tokens, steps_total, worldsim_calls, generated_calls = [], 0, 0, 0, 0
+    opaque_traces, reproduced_errors = [], {}
     for source in sources:
         case_id = source["provenance"]["collection_case"]
         require(case_id in prepared_cases and case_id in manifest["cases"], "Source has no frozen benchmark fixture")
@@ -275,10 +362,29 @@ def audit_collection(output, stage_name, protocol):
                 "Native initial request differs from the frozen no-payload input")
         generated_calls += audit_opaque_call_references(record, fixture, collection, prepared_cases.keys())
         reconstructed, segments = [], []
+        failures = []
         for index, step in enumerate(record["steps"], 1):
             require(step["step"] == index and step["input_ids_sha256"] == obj_sha(step["input_ids"]),
                     "Raw native step numbering/input-ID hash differs")
             require(len(step["generated_ids"]) <= collection["max_new_tokens"], "Raw generation exceeds the frozen token limit")
+            request_frames, _, _ = original_frames(step["input_ids"], decoder, False, require_targets=False)
+            require(request_frames and not request_frames[-1]["complete"]
+                    and not request_frames[-1].get("opaque")
+                    and step["generation_prefix_ids"] == step["input_ids"][request_frames[-1]["start"]:],
+                    "Raw response does not use the actual current open assistant header")
+            rejection = independent_response_error(step, decoder, step.get("parsed_response"))
+            if "parse_error" in step:
+                saved_error = step["parse_error"]
+                require(index == len(record["steps"]) and rejection is not None
+                        and rejection["type"] == saved_error["type"]
+                        and isinstance(saved_error["message"], str) and bool(saved_error["message"])
+                        and "parsed_response" not in step and not step["worldsim"],
+                        "Saved final native parse error is not independently reproduced")
+                failures.append(index)
+                reproduced_errors[source["trace_id"]] = dict(saved=saved_error, independent=rejection)
+            else:
+                require(rejection is None and "parsed_response" in step,
+                        "A claimed successful native response independently fails strict validation")
             if index == 1:
                 reconstructed.extend(step["input_ids"])
                 segments.append(dict(kind="initial_request", step=index, start=0, end=len(reconstructed),
@@ -306,6 +412,26 @@ def audit_collection(output, stage_name, protocol):
                 require(all(not any(key in message for key in ("thinking", "reasoning", "reasoning_content"))
                             for message in body["CLEAN_CONVERSATION"]), "WorldSim received private analysis")
                 worldsim_calls += 1
+        opaque = source.get("opaque_terminal_start")
+        if failures:
+            last = record["steps"][-1]
+            expected_start = segments[-1]["start"] - len(last["generation_prefix_ids"])
+            require(failures == [len(record["steps"])] and opaque == expected_start
+                    and record["terminal_reason"] == source["provenance"]["terminal_reason"] == "invalid_native_response"
+                    and source["allow_terminal_body"] is False
+                    and source["input_ids"][opaque:segments[-1]["start"]] == last["generation_prefix_ids"]
+                    and source["input_ids"][opaque:] == last["generation_prefix_ids"] + last["generated_ids"],
+                    "Opaque context is not exactly the current failed response/open header")
+            require(source["provenance"]["invalid_native_response"] == dict(
+                    **last["parse_error"], step=last["step"], opaque_terminal_start=expected_start),
+                    "Original native parse error provenance was altered")
+            original_frames(source["input_ids"][:opaque], decoder, False,
+                            require_targets=False, allow_open_header=False)
+            opaque_traces.append(source["trace_id"])
+        else:
+            require(opaque is None and "invalid_native_response" not in source["provenance"]
+                    and record["terminal_reason"] != "invalid_native_response",
+                    "A successfully parsed response was hidden as opaque context")
         require(source["input_ids"] == reconstructed and source["provenance"]["segments"] == segments,
                 "Chronological native trace does not preserve every raw generated token exactly once")
         require(source["eof_finish_reason"] == record["steps"][-1]["finish_reason"],
@@ -322,7 +448,12 @@ def audit_collection(output, stage_name, protocol):
                 exact_original_ids_reconstructed=True, no_payload_all41_prepared=True,
                 generated_tool_calls=generated_calls, opaque_generated_call_ids_verified=True,
                 current_call_and_history_tool_response_references_verified=True,
-                worldsim_administrative_ids_exclude_case_identifiers=True)
+                worldsim_administrative_ids_exclude_case_identifiers=True,
+                opaque_terminal_context_exactly_preserves_failed_raw_response=True,
+                native_parse_failures_independently_reproduced=True,
+                saved_parsed_calls_and_content_independently_rebuilt_from_native_ids=True,
+                no_worldsim_after_native_parse_failure=True,
+                opaque_terminal_traces=opaque_traces, reproduced_native_errors=reproduced_errors)
 
 
 def audit_inputs(output, stage_name, protocol, decoder):
@@ -349,7 +480,14 @@ def audit_inputs(output, stage_name, protocol, decoder):
         provenance = source.get("provenance", {})
         eof = source.get("eof_finish_reason", provenance.get("eof_finish_reason"))
         require(not allow or eof == "length", "Observed EOF body has no raw length-limited generation proof")
-        frames, first, first_normal = original_frames(ids, decoder, allow)
+        opaque = source.get("opaque_terminal_start")
+        frames, first, first_normal = original_frames(ids, decoder, allow, opaque)
+        if opaque is not None:
+            invalid = provenance.get("invalid_native_response", {})
+            require(provenance.get("terminal_reason") == "invalid_native_response"
+                    and invalid.get("opaque_terminal_start") == opaque
+                    and invalid.get("type") in ("ValueError", "JSONDecodeError")
+                    and isinstance(invalid.get("message"), str), "Opaque source context has no saved native parse error")
         observed = [frame for frame in frames if frame["complete"] and not frame["terminated"]]
         require(bool(observed) == allow, "Terminal-body flag differs from the actual native source extent")
         if observed:
@@ -482,6 +620,17 @@ def audit_inputs(output, stage_name, protocol, decoder):
                         "Body-start metadata differs: " + key)
             require(row["token_source_positions"] == expected_origins, "Full-input token ownership differs: " + key)
             require(row["input_ids"] == expected_ids, "Intervention changed or invented unattributed tokens: " + key)
+            opaque = source.get("opaque_terminal_start")
+            new_opaque = None if opaque is None else len(expected_ids) - len(ids) + opaque
+            require(row["opaque_terminal_start"] == new_opaque and row["original_opaque_terminal_start"] == opaque
+                    and row["trace_has_opaque_terminal"] == (opaque is not None)
+                    and row["trailing_opaque_ids"] == ([] if opaque is None else ids[opaque:]),
+                    "Opaque context span metadata differs: " + key)
+            if opaque is not None:
+                require(expected_ids[new_opaque:] == ids[opaque:]
+                        and expected_origins[new_opaque:] == list(range(opaque, len(ids)))
+                        and all(position < new_opaque for position in expected_positions),
+                        "Opaque raw response was altered or assigned a source body label: " + key)
             require(row["target_positions"] == expected_positions and row["target_original_positions"] == original_positions,
                     "Selected target body ownership differs: " + key)
             require(row["role_target_positions"] == role_positions, "Role capture masks differ: " + key)
@@ -497,7 +646,10 @@ def audit_inputs(output, stage_name, protocol, decoder):
                       trace_split_counts={"external": len(grouped)}, role_support={role: supports[role] for role in ROLES},
                       role_availability=availability_by_trace, wrapper_provenance_counts=dict(wrapper_counts),
                       terminal_censored_traces=terminal, all_token_native_interventions_independently_rebuilt=True,
-                      catalog_wrappers_match_authoritative_native_pilot=True)
+                      catalog_wrappers_match_authoritative_native_pilot=True,
+                      opaque_suffix_tokens_and_ownership_preserved_all_interventions=True,
+                      opaque_suffix_excluded_from_all_source_targets_and_wrappers=True,
+                      move_end_before_opaque_suffix_at_last_validated_native_boundary=True)
 
 
 def softmax(values):
@@ -623,8 +775,9 @@ def validate(args):
     model = args.model.resolve() if args.model else Path(protocol["model_path"])
     for name, expected in metadata["model_binding"]["assets_sha256"].items():
         require(sha(model / name) == expected, "Bound tokenizer/backbone asset changed: " + name)
-    collection_result = audit_collection(output, stage_name, protocol)
-    rows, input_result = audit_inputs(output, stage_name, protocol, HeaderDecoder(model / "tokenizer.json"))
+    decoder = HeaderDecoder(model / "tokenizer.json")
+    collection_result = audit_collection(output, stage_name, protocol, decoder)
+    rows, input_result = audit_inputs(output, stage_name, protocol, decoder)
     result = dict(status="passed", stage=stage_name, checkpoint_sha256=PROBE_SHA,
                   protocol_sha256=sha(stage / "protocol.json"), inputs_sha256=sha(stage / "inputs.jsonl"),
                   validator_sha256=sha(__file__), inputs=input_result, collection=collection_result,

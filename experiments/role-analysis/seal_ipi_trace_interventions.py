@@ -72,14 +72,26 @@ def gate(root, name):
             and validation["collection"]["exact_original_ids_reconstructed"] is True,
             "Native collection conservation audit is incomplete")
     for flag in ("opaque_generated_call_ids_verified", "current_call_and_history_tool_response_references_verified",
-                 "worldsim_administrative_ids_exclude_case_identifiers"):
+                 "worldsim_administrative_ids_exclude_case_identifiers",
+                 "saved_parsed_calls_and_content_independently_rebuilt_from_native_ids"):
         require(validation["collection"].get(flag) is True, "Clean simulator identifier audit is incomplete: " + flag)
+    for flag in ("opaque_terminal_context_exactly_preserves_failed_raw_response",
+                 "native_parse_failures_independently_reproduced", "no_worldsim_after_native_parse_failure"):
+        require(validation["collection"].get(flag) is True,
+                "Native response failure audit is incomplete, including zero-anomaly stages: " + flag)
+    for flag in ("opaque_suffix_tokens_and_ownership_preserved_all_interventions",
+                 "opaque_suffix_excluded_from_all_source_targets_and_wrappers",
+                 "move_end_before_opaque_suffix_at_last_validated_native_boundary"):
+        require(validation["inputs"].get(flag) is True,
+                "Opaque context intervention audit is incomplete, including zero-anomaly stages: " + flag)
     origins = read(stage / "first-body-provenance.json")
     require(origins["status"] == "passed" and origins["traces"] == n_traces
             and origins["source_traces_sha256"] == protocol["source_records_sha256"]
             and origins["role_support"] == validation["inputs"]["role_support"]
             and origins["auditor_sha256"] == digest(HERE / "audit_ipi_trace_body_provenance.py"),
             "First-body source provenance is incomplete or stale")
+    require(origins.get("opaque_terminal_traces") == len(validation["collection"]["opaque_terminal_traces"]),
+            "Body provenance and collection disagree on opaque terminal trace support")
     require(export["status"] == "complete" and export["inputs"] == export["hiddenstate_files"]
             == export["readout_files"] == n_inputs and export["token_rows"] == n_tokens,
             "Exports are incomplete")
@@ -96,7 +108,9 @@ def gate(root, name):
             "Independent export audit is incomplete")
     for flag in ("all_saved_token_rows_compared", "coordinates_and_token_ids_bit_exact", "saved_logits_bit_exact",
                  "saved_probabilities_bit_exact", "baseline_and_variant_role_masks_exact",
-                 "body_token_offsets_exact", "hiddenstate_index_matches_committed_records", "exporter_not_imported"):
+                 "body_token_offsets_exact", "hiddenstate_index_matches_committed_records", "exporter_not_imported",
+                 "opaque_suffix_excluded_from_all_exported_target_masks",
+                 "opaque_suffix_coordinate_checks_do_not_reparse_native_text"):
         require(export_audit.get(flag) is True, "Export audit did not prove: " + flag)
     require(stats["status"] == "passed" and stats["input_summary_sha256"] == run["summary_sha256"]
             and stats["analyzer_not_imported"] is True

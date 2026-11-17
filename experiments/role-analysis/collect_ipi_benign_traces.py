@@ -47,7 +47,7 @@ def trace_from_record(record):
                              generated_start=0,generated_end=len(step['generated_ids'])))
     assert sum(s['end']-s['start'] for s in segments)==len(ids)
     last=record['steps'][-1]
-    return dict(trace_id=record['trace_id'],source_split='external',category=record['category'],
+    trace = dict(trace_id=record['trace_id'],source_split='external',category=record['category'],
                 input_ids=ids,allow_terminal_body=last['finish_reason']=='length',
                 eof_finish_reason=last['finish_reason'],
                 provenance=dict(collection_case=record['case_id'],collection_signature=record['signature'],
@@ -56,6 +56,17 @@ def trace_from_record(record):
                     raw_generated_tokens_preserved_exactly_once=True,terminal_reason=record['terminal_reason'],
                     context='Retrospective fixture-prefix plus raw native continuation and first-visible tool returns; not the final live request.',
                     real_tool_execution=False,empty_injection_slot=True))
+    if record['terminal_reason']=='invalid_native_response':
+        # Treat the whole final native response as unlabelled context. Nothing
+        # is repaired, discarded, or given an inferred six-role target label.
+        raw_segment=segments[-1]
+        start=raw_segment['start']-len(last['generation_prefix_ids'])
+        assert ids[start:raw_segment['start']]==last['generation_prefix_ids']
+        trace['opaque_terminal_start']=start
+        trace['allow_terminal_body']=False
+        trace['provenance']['invalid_native_response']=dict(**last['parse_error'],step=last['step'],
+                                                           opaque_terminal_start=start)
+    return trace
 
 
 def collect_case(prepared,record_path,model,tok,collect,config,simulator):
@@ -94,7 +105,14 @@ def collect_case(prepared,record_path,model,tok,collect,config,simulator):
             record['steps'].append(step);write(record_path,record)
             emit(event='decode_complete',case_id=item['case_id'],step=step_number,
                  generated_tokens=len(generated),seconds=step['decode_seconds'],finish_reason=finish)
-            parsed=source.parse_native_response(generated,tok,generation_prefix_ids=prefix,finish_reason=finish)
+            try:
+                parsed=source.parse_native_response(generated,tok,generation_prefix_ids=prefix,finish_reason=finish)
+            except ValueError as error:
+                # Model format/JSON failures are observed terminal outcomes,
+                # not dataset exclusions or successful simulated tool calls.
+                step['parse_error']=dict(type=type(error).__name__,message=str(error))
+                record['terminal_reason']='invalid_native_response'
+                break
             step['parsed_response']=parsed
             calls=parsed['tool_calls']
             if finish=='length':
@@ -134,7 +152,8 @@ def collect_case(prepared,record_path,model,tok,collect,config,simulator):
             previous_prompt=ids
         record.update(status='complete',duration_seconds=time.monotonic()-started,messages=messages)
         trace=trace_from_record(record)
-        data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace['allow_terminal_body'])
+        data.parse_native_blocks(trace['input_ids'],tok,allow_terminal_body=trace['allow_terminal_body'],
+                                 opaque_terminal_start=trace.get('opaque_terminal_start'))
         record['trace']=trace;write(record_path,record)
     except Exception as error:
         record.update(status='error',duration_seconds=time.monotonic()-started,
@@ -165,6 +184,7 @@ def main():
                 worldsim_requested_output_character_budget=source.WORLDSIM_OUTPUT_CHAR_BUDGET,
                 worldsim_policy=source.worldsim_policy(),
                 tool_call_id_policy='Opaque call_0001..call_0005 by step; no case names; collisions with fixture/history IDs are rejected.',
+                native_parse_failure_policy='ValueError/JSONDecodeError stops invalid_native_response; preserve the entire final open-header plus raw generation as opaque unlabelled terminal context; no simulator request, no six-role target/wrapper from this suffix.',
                 prepared_manifest_sha256=digest(out/'prepared/manifest.json'),probe_sha256=shared.SHA,
                 pilot_case_id=pilot,pilot_selection_sha256=digest(selection_path),
                 code_sha256={str(f.relative_to(REPO)):digest(f) for f in [Path(__file__),HERE/'ipi_benign_source_data.py',

@@ -1,17 +1,18 @@
 IPI Arena no-payload first-role interventions — fixed 2026-11-17 reproduction
 
 This document describes the final uniform WorldSim choice openai/gpt-4.1, with
-provider max_tokens=8192 and an accepted tool-response budget of12000 Unicode
-code points. Three superseded attempts are preserved independently, including their
+provider max_tokens=8192 and an accepted tool-response budget of 12000 Unicode
+code points. Four superseded attempts are preserved independently, including their
 hash-bound attempt-source code and raw failures:
   outputs/ipi-benign-trace-interventions-20261117-worldsim4096-attempt
   outputs/ipi-benign-trace-interventions-20261117-worldsim-gemini8192-attempt
   outputs/ipi-benign-trace-interventions-20261117-named-call-id-attempt
+  outputs/ipi-benign-trace-interventions-20261117-strict-header-attempt
 Do not mix any superseded attempt's source traces, feedback, probe records or validations
 with this canonical GPT-4.1 run. The simulator choice was made from completion/
 transport diagnostics on the same clean requests, not from role-probe scores.
 Every formal task uses the same simulator; there is no per-task model fallback.
-The last superseded attempt leaked case names through generated administrative
+The named-call-ID attempt leaked case names through generated administrative
 call IDs and a simulator echoed one into semantic content. The current collector
 uses only call_0001..call_0005 by generation step, asserts no history-ID collision,
 and keeps CURRENT_CALL/assistant/tool-reference IDs consistent. Original fixture
@@ -127,6 +128,29 @@ retrospective trace, including CoT that later live requests may omit. Replaying
 that immutable source fixes the input; a fresh simulated collection need not
 reproduce the same source text byte for byte.
 
+Invalid native generation: conservative terminal policy
+-------------------------------------------------------
+The strict-header attempt stopped on a generated header with multiple channel
+markers. The current protocol never repairs, normalizes or interprets such a
+failed generation. It terminates that task as invalid_native_response, preserves
+the exact open assistant header plus the entire last generated token sequence as
+an opaque suffix at opaque_terminal_start, and makes no further WorldSim call
+for it. Even an apparently valid analysis frame earlier in that same failed
+generation is not selected as a source or wrapper. All earlier verified prefix
+frames and all observed tokens remain; a role seen only in the opaque suffix is
+missing. The task stays in the full41 inventory: do not exclude/retry it to obtain
+a parseable response or substitute a later body. This differs from an identifiable
+ordinary assistant/CoT body censored at the normal max-new-token budget.
+
+The opaque suffix is immutable unparsed context. Move-end is the last verified
+native boundary BEFORE it, not the literal end after opaque tokens. Independent
+validation checks exact original token conservation, opaque boundaries, masks and
+ownership. Source provenance reports invalid-native/opaque counts and length
+censoring separately. A collection record marked complete denotes bounded
+observation, not successful task execution. No previous pilot feedback, numbers
+or bitwise repeatability claim is reused after this policy change; the current
+pilot is freshly collected, computed, audited and actually reported first.
+
 Pilot collection, replay, audit, exports and plots
 -------------------------------------------------
 Commands below use the fixed collector budgets: max 5 target generations, each
@@ -175,7 +199,7 @@ and write pilot/feedback.json with:
   feedback: the actual delivered summary, including its single-trace limitation
 
 Do not create this attestation in advance. Do not reuse any superseded
-attempt's feedback marker, including the named-call-ID GPT-4.1 attempt. The collector and all-stage preparer check this gate
+attempt's feedback marker, including the named-call-ID and strict-header GPT-4.1 attempts. The collector and all-stage preparer check this gate
 against the actual GPT-4.1 pilot run hash; final seal also checks the validation
 snapshot and its protocol/input bindings. A rerun that has not actually delivered
 feedback must stop at this gate, while preserving its completed pilot artifacts.

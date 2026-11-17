@@ -43,6 +43,7 @@ def role_masks(row):
                    "Invalid target coordinates: " + name)
     native.require(np.all(np.diff(positions) > 0) and positions[0] >= 0 and positions[-1] < len(row["input_ids"]),
                    "Target coordinates must be unique, ordered input positions")
+    analysis.validate_opaque_target_mask(row, positions)
     ownership = {}
     for role, mask in row["role_target_positions"].items():
         native.require(role in ROLES and len(mask) > 0, "Invalid or empty native source role")
@@ -74,6 +75,7 @@ def schema_metadata(schema, *, token: bool):
     metadata[b"format"] = b"ipi-trace-body-token-readouts-v1" if token else b"ipi-trace-hiddenstates-index-v1"
     metadata[b"dataset"] = b"IPI Arena clean continuation"
     metadata[b"source_role_policy"] = b"Only actually present nonempty source bodies; absent roles are missing, not fabricated"
+    metadata[b"opaque_terminal_policy"] = b"Authoritative terminal native-parse-failure suffix is context only; no suffix token is a scored source body"
     if token:
         metadata[b"baseline"] = b"Union of actually present first-role bodies; source_role is assigned separately to each token"
     else:
@@ -198,6 +200,7 @@ def export_tables(root, stage_name, rows, expected_tokens, validation):
                                     row_groups=hidden_meta.num_row_groups, columns={field.name: str(field.type) for field in hidden_format}),
             roles=list(ROLES), coordinates="Zero-based input and original token coordinates; body_token_offset restarts per source body",
             baseline_policy="Baseline stores the union of actually present first-role bodies; source_role is assigned per token. Missing source bodies are not fabricated.",
+            opaque_terminal_policy="Authoritative suffix boundaries are checked without native reparsing; no opaque terminal token is assigned a source role or exported as a scored body token.",
             destination_role_policy="Original inputs.jsonl value: destination role for swaps, null otherwise",
             value_policy="Saved float32 logits and probabilities copied directly without loading or recomputing the model/probe",
             hiddenstate_verification="File lengths, 43 tensor headers, signatures and small coordinate vectors checked; payload hashes copied from completed records",

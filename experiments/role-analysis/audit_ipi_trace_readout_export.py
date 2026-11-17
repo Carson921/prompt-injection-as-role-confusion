@@ -102,6 +102,22 @@ def input_inventory(rows, stage_name):
         ids.add(name)
         require(row["source_split"] == "external", "IPI source split is not external")
         require(row["operation"] in ("baseline", "strip", "swap", "move"), "Unknown operation")
+        boundary, original_boundary = row.get("opaque_terminal_start"), row.get("original_opaque_terminal_start")
+        suffix, has_opaque = row.get("trailing_opaque_ids", []), row.get("trace_has_opaque_terminal", False)
+        if boundary is None:
+            require(not has_opaque and original_boundary is None and not suffix,
+                    "Opaque suffix metadata lacks its boundary")
+        else:
+            require(has_opaque is True and type(boundary) is int and type(original_boundary) is int
+                    and 0 <= boundary < len(row["input_ids"]) and original_boundary >= 0 and suffix,
+                    "Invalid authoritative opaque suffix coordinates")
+            require(row["input_ids"][boundary:] == suffix and
+                    len(row["token_source_positions"]) == len(row["input_ids"]) and
+                    row["token_source_positions"][boundary:] == list(range(original_boundary, original_boundary + len(suffix))),
+                    "Opaque suffix tokens or ownership changed")
+            require(all(position < boundary for position in row["target_positions"]) and
+                    all(position < original_boundary for position in row["target_original_positions"]),
+                    "Opaque suffix token is falsely assigned a source-body role")
         traces.setdefault(row["trace_id"], []).append(row)
     require(len(traces) == EXPECTED_TRACES[stage_name], "Wrong external task cohort size")
     for trace, items in traces.items():
@@ -222,6 +238,9 @@ def validate(root, stage_name):
             hidden_meta.get(b"format") == b"ipi-trace-hiddenstates-index-v1", "Parquet dataset format metadata differs")
     require(json.loads(token_meta.get(b"roles", b"null")) == list(ROLES) and
             token_meta.get(b"dataset") == hidden_meta.get(b"dataset") == b"IPI Arena clean continuation", "Parquet role/dataset metadata differs")
+    require(token_meta.get(b"opaque_terminal_policy") == hidden_meta.get(b"opaque_terminal_policy") ==
+            b"Authoritative terminal native-parse-failure suffix is context only; no suffix token is a scored source body",
+            "Parquet opaque-terminal policy metadata differs")
     readout_hashes, record_hashes = {}, {}
     split_inputs, split_tokens, operations, role_tokens = Counter(), Counter(), Counter(), Counter()
     hidden_bytes, row_total = 0, 0
@@ -320,6 +339,9 @@ def validate(root, stage_name):
         all_saved_token_rows_compared=True, coordinates_and_token_ids_bit_exact=True,
         saved_logits_bit_exact=True, saved_probabilities_bit_exact=True, floats_compared_as_uint32_bits_including_signed_zero=True,
         differing_float32_bit_patterns=0, baseline_and_variant_role_masks_exact=True, body_token_offsets_exact=True,
+        opaque_suffix_excluded_from_all_exported_target_masks=True,
+        opaque_suffix_coordinate_checks_do_not_reparse_native_text=True,
+        inputs_with_opaque_terminal_context=sum(row.get("opaque_terminal_start") is not None for row in rows),
         npz_fp16_heads_and_indexed_hiddenstate_fp16_heads_bit_exact=True, bf16_to_fp16_head_conversion_bit_exact=True,
         head_feature_scalar_values_compared=row_total * 1024, head_features_are_parquet_columns=False,
         head_feature_policy="Parquet has six logits/probabilities; FP16 head values are verified between each NPZ and its indexed source safetensors file",
