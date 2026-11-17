@@ -1,0 +1,251 @@
+{
+  "agentdojo_revision": "c6832ab413ebb4728f7b18640702df542e8b4142",
+  "benchmark_passed": false,
+  "complete": false,
+  "created_unix": 1794811548.6980581,
+  "current_saved_response_snapshot": {
+    "calls": {
+      "parsed_tool_call_counts": {
+        "get_balance": 19,
+        "get_most_recent_transactions": 41,
+        "get_scheduled_transactions": 10,
+        "get_user_info": 5,
+        "read_file": 18,
+        "send_money": 10,
+        "update_scheduled_transaction": 6
+      },
+      "saved_model_responses_at_snapshot": 131
+    },
+    "smoke/calls": {
+      "parsed_tool_call_counts": {
+        "get_rating_reviews_for_hotels": 2,
+        "get_user_information": 2,
+        "get_webpage": 2,
+        "read_file": 2,
+        "reserve_hotel": 2
+      },
+      "saved_model_responses_at_snapshot": 14
+    }
+  },
+  "existing_core_or_data_modified": false,
+  "findings": [
+    {
+      "conclusion": "No clock/random/uuid use found in the 11 reachable tools; IDs and environment updates depend on input arguments and saved mock state.",
+      "evidence": [
+        "banking_client.py:30-37 next id = max existing ids + 1",
+        "banking_client.py:55-150 send/schedule/update dates and amounts use arguments",
+        "file_reader.py:12-19 reads injected mock filesystem",
+        "user_account.py:20-79 updates argument-supplied fields"
+      ],
+      "id": "banking_deterministic",
+      "status": "source_supported",
+      "suite": "banking"
+    },
+    {
+      "conclusion": "No Slack timestamp, generated UUID, or random identifier exists in these pinned implementations.",
+      "evidence": [
+        "slack.py:8-11 Message has sender/recipient/body only",
+        "slack.py:63-75 send_direct_message appends deterministic Message",
+        "slack.py:78-90 send_channel_message appends deterministic Message",
+        "web.py:24-44 gets/posts mock environment dictionary, no network"
+      ],
+      "id": "slack_deterministic",
+      "status": "source_supported",
+      "suite": "slack"
+    },
+    {
+      "conclusion": "Reservation/calendar dates and IDs do not sample wall clock. Email sends are the reachable wall-clock source.",
+      "evidence": [
+        "calendar_client.py:27-29 event ID = max existing ids + 1",
+        "calendar_client.py:157-158 parses argument dates",
+        "calendar_client.py:191-197 current_day is a saved environment field (tool is not registered in travel)",
+        "travel_booking_client.py:339-400 reservation dates are parsed from tool arguments",
+        "types.py:79-80 Email timestamp default exists; native send path explicitly passes timestamp",
+        "data/suites/travel/environment.yaml:initial_emails explicitly contains fixed timestamp"
+      ],
+      "id": "travel_argument_dates_and_ids",
+      "status": "source_supported",
+      "suite": "travel"
+    },
+    {
+      "conclusion": "Direct send_email model-visible timestamp is replayed from exact saved evidence; missing or inconsistent evidence fails closed.",
+      "evidence": [
+        "email_client.py:73-102 Inbox.send_email samples datetime.datetime.now at line95",
+        "email_client.py:154-193 native send_email returns created Email",
+        "deepseek_agentdojo_native_audit.py:223-243 finds named send_email result in original requests/final trace",
+        "deepseek_agentdojo_native_audit.py:198-219 validates and binds original naive timestamp",
+        "deepseek_agentdojo_native_audit.py:341-363 patches email_client.datetime only for native tool name send_email and executes actual mock function"
+      ],
+      "id": "direct_send_email_clock",
+      "status": "covered_by_frozen_audit",
+      "suite": "travel"
+    },
+    {
+      "conclusion": "Calendar notification emails receive new replay-time timestamps. Those hidden timestamps are absent from normal saved model messages, so exact final environment timestamp equality cannot be claimed. This alone does not prove changed model histories or native utility/security; the audit compares actual saved histories/final booleans, not every environment field.",
+      "evidence": [
+        "calendar_client.py:137-168 create_calendar_event calls inbox.send_email at162 and returns CalendarEvent, not Email",
+        "calendar_client.py:58-67/200-211 cancel_calendar_event calls Inbox.send_email and returns a string",
+        "deepseek_agentdojo_native_audit.py:342-344 delegates all non-send_email functions without clock binding",
+        "travel/task_suite.py:59-96 does not register inbox read/search tools"
+      ],
+      "id": "internal_calendar_email_clock",
+      "minimal_future_case": "First saved travel case containing successful create_calendar_event or cancel_calendar_event; inspect actual fresh replay notification timestamp separately from final native scores. No such actual saved call is present at this snapshot.",
+      "status": "exact_hidden_environment_reconstruction_gap",
+      "suite": "travel"
+    },
+    {
+      "conclusion": "With >=2 distinct participant addresses, native set iteration order can differ across interpreter hash seeds; saved returned CalendarEvent/next request may then fail the audit strict byte/order equality. This has not been observed in an actual saved case and is not an ASR failure claim.",
+      "evidence": [
+        "calendar_client.py:43-56 appends account email then participants=list(set(participants)) at45 and returns event",
+        "deepseek_agentdojo_native_audit.py:320-325 requires exact model history;393-394 exact final trace",
+        "bridge/audit/controller source does not set PYTHONHASHSEED; actual controller and bridge environment variable is absent"
+      ],
+      "id": "calendar_participant_set_order",
+      "minimal_future_case": "First saved successful travel create_calendar_event whose participants plus account email contain >=2 distinct strings; replay that one immutable case with saved completions only under independent process/hash seed and compare returned participant list. Do not modify the saved tools/results or native source.",
+      "status": "conditional_strict_replay_gap",
+      "suite": "travel"
+    }
+  ],
+  "frozen_native_audit_sha256": "1d4edaabd9cca8d0ed7a5ec79b695ce3d5e1e41651ac3c23c7c915cf99622492",
+  "full778_complete": false,
+  "gpu_or_model_generation_performed": false,
+  "limits": [
+    "Source review establishes implementation paths, not successful replay of unobserved future calls.",
+    "No complete ASR or full benchmark validity is inferred.",
+    "Cloud-drive upload/append datetime.now paths belong to workspace, which is outside this 3-suite schedule.",
+    "No broader tests or previously verified banking replays were run."
+  ],
+  "native_evaluator_replays_performed": 0,
+  "network_calls_performed": false,
+  "observed_clock_or_calendar_tool_calls": [],
+  "observed_process_pythonhashseed": {
+    "1040866": null,
+    "1098793": null
+  },
+  "response_snapshot_sha256": "ebbc6d547359e0a7fb4a24ea3d8d06b891653465acffde2c3f332982862ba8d0",
+  "review_complete": true,
+  "reviewed_sources_unchanged_during_review": true,
+  "run_identity_sha256": "af706d97f8ca7ddf9fee7bc8e2d7ad37df63d8662d9790e4ce8ff0c74a3e626c",
+  "schedule_sha256": "6fa82a6af5c40caac53aeca52c36c925c1c3621b853c216d623c6f5efa74df1b",
+  "schema": "deepseek-native-tool-clock-coverage-source-review-v1",
+  "scope": "Read-only reachable registered tools for pinned banking/slack/travel and frozen native audit; no evaluator replay or synthetic test",
+  "source_files_sha256": {
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/agent_pipeline/tool_execution.py": "96842ef579714cdc7f854bc13d4bca2be0c27897abc29dad2e1ba33ce3b11bdc",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/data/suites/banking/environment.yaml": "3f539da1d97779b244cd122afc683dc69d602f338e1b3c42d126cbde33611c8b",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/data/suites/slack/environment.yaml": "0ea2f9b83e5ffaae0bf50fab2b13d6c8ee59a952f791b16c9554fdc48935c87d",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/data/suites/travel/environment.yaml": "ca8ef591bde5a8d8b9e2efe6830b8e4646c43f633c86f14cb878f588bb4b8a3c",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/banking/task_suite.py": "c58ec73db16f713a16aaec787dac45856e546f4d95be84ab6a4bed9bc12613b6",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/slack/task_suite.py": "bdc6798e8ef83a54e787af80ed44f94e4be8f24aba2eaec2103e3120958c3670",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/banking_client.py": "0e4273f521db7ff6d5e7f7f552e917b11940102abd932aea8a2998b517441b42",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/calendar_client.py": "5d551339fb87237dd1414a003b26f4f851dbdd2b0826225025e44f16420add22",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/email_client.py": "782adb70c81ec765919ae835494fac163dbb46f21ef46f6dcf18eab390b5e294",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/file_reader.py": "09438864a1e1ac6564df3e4f7eb60a9a224de2ef8a92c4eb4899f7768ce49d6d",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/slack.py": "c70dbc7b3356e93a1c2bd4e78700859ea58b36adbf8169e51b03f355b0a5fe69",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/travel_booking_client.py": "ad6b3441a38a1ff4bdc7227a15fb9ed764a7906baf2f75902bdb70f2100f69ba",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/types.py": "691ed3353bd04e9f8233c4f70901daefb564e56209a8946f516496520aca3c13",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/user_account.py": "f097c4b2b6cd6784272987d8d37dd7cc5d599620d64b371f7c2af8e65d7ad673",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/tools/web.py": "246cc534a939ade2864bb62441d8452de7a840d007147c22391ad07bff91594c",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/travel/task_suite.py": "a2b58f094bd61a79e245ca74c94d9a3d62cc6bc744e5ee21bdadabb43960ba60",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1_2/travel/injection_tasks.py": "15b8ccee487223bfc6afc58cf05591e3a96fb668eee39d7d47ac2fd98f5173c0",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1_2/travel/user_tasks.py": "a563163efea5e723e4fbbafae66fca33e6b743e50f6c25865167dc0663615ef9",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/functions_runtime.py": "5f425246cabb2ffe28a75f7108817dc32205876db4c67ffb3bc2113cf55bb8eb",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/task_suite/load_suites.py": "9fcbf5eaf9af38c6a5a85a202711f7575618e30d63bbb0156934c3702132392c",
+    "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/task_suite/task_suite.py": "c99bbe54580f7f117af60aceadc0162f96cc7b95314b5904f8220ddfb57b2c20",
+    "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/deepseek_agentdojo_native_audit.py": "1d4edaabd9cca8d0ed7a5ec79b695ce3d5e1e41651ac3c23c7c915cf99622492"
+  },
+  "status": "source_review_complete_with_qualified_gaps",
+  "tool_inventory": {
+    "banking": {
+      "actual_suite_benchmark_version": [
+        1,
+        2,
+        0
+      ],
+      "benchmark_api": "v1.2.1",
+      "registered_tool_count": 11,
+      "registered_tools": [
+        "get_iban",
+        "send_money",
+        "schedule_transaction",
+        "update_scheduled_transaction",
+        "get_balance",
+        "get_most_recent_transactions",
+        "get_scheduled_transactions",
+        "read_file",
+        "get_user_info",
+        "update_password",
+        "update_user_info"
+      ],
+      "registration_line": 23,
+      "runtime_inventory_import_checked": true,
+      "source": "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/banking/task_suite.py"
+    },
+    "slack": {
+      "actual_suite_benchmark_version": [
+        1,
+        2,
+        0
+      ],
+      "benchmark_api": "v1.2.1",
+      "registered_tool_count": 11,
+      "registered_tools": [
+        "get_channels",
+        "add_user_to_channel",
+        "read_channel_messages",
+        "read_inbox",
+        "send_direct_message",
+        "send_channel_message",
+        "get_users_in_channel",
+        "invite_user_to_slack",
+        "remove_user_from_slack",
+        "get_webpage",
+        "post_webpage"
+      ],
+      "registration_line": 23,
+      "runtime_inventory_import_checked": true,
+      "source": "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/slack/task_suite.py"
+    },
+    "travel": {
+      "actual_suite_benchmark_version": [
+        1,
+        2,
+        0
+      ],
+      "benchmark_api": "v1.2.1",
+      "registered_tool_count": 28,
+      "registered_tools": [
+        "get_user_information",
+        "get_all_hotels_in_city",
+        "get_hotels_prices",
+        "get_rating_reviews_for_hotels",
+        "get_hotels_address",
+        "get_all_restaurants_in_city",
+        "get_cuisine_type_for_restaurants",
+        "get_restaurants_address",
+        "get_rating_reviews_for_restaurants",
+        "get_dietary_restrictions_for_all_restaurants",
+        "get_contact_information_for_restaurants",
+        "get_price_for_restaurants",
+        "check_restaurant_opening_hours",
+        "get_all_car_rental_companies_in_city",
+        "get_car_types_available",
+        "get_rating_reviews_for_car_rental",
+        "get_car_fuel_options",
+        "get_car_rental_address",
+        "get_car_price_per_day",
+        "create_calendar_event",
+        "search_calendar_events",
+        "get_day_calendar_events",
+        "cancel_calendar_event",
+        "reserve_hotel",
+        "reserve_car_rental",
+        "reserve_restaurant",
+        "get_flight_information",
+        "send_email"
+      ],
+      "registration_line": 59,
+      "runtime_inventory_import_checked": true,
+      "source": "/scratch/wz55191/Github/delimeter-token/indirect-prompt-injection/ChatInject/src/agentdojo/default_suites/v1/travel/task_suite.py"
+    }
+  }
+}

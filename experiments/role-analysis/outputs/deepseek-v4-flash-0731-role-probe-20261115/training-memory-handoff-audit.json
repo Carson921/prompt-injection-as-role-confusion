@@ -1,0 +1,186 @@
+{
+  "format_version": "deepseek-training-memory-handoff-static-audit-v1",
+  "status": "reviewed",
+  "generated_at_utc": "2026-11-15T20:50:54.264749+00:00",
+  "live_pid": 3579382,
+  "scope": "Read-only source, committed artifacts, allocator documentation and nvidia-smi; no GPU allocations, process attachment, source edits or restarts",
+  "conclusion": "The resident backbone plus FIT/DEV caches and sequential small classifiers fit the logical device budget. No activation-retaining hook or seven-model accumulation was found. Live allocator fragmentation and the largest releasable contiguous segment cannot be proven from an external read-only observation.",
+  "inputs": {
+    "runner": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/run_deepseek_role_probe.py",
+      "bytes": 30938,
+      "sha256": "5d54d17420f321c26bf60b3d8c7db64db6749d83b5411548747f0443ae288ed0"
+    },
+    "loader": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/deepseek_role_probe_model.py",
+      "bytes": 37448,
+      "sha256": "b732733a8bc3b7d147f4e418ac45b009869f5900c11cf2999a8901f856fe5b21"
+    },
+    "trainer": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/deepseek_role_probe_train.py",
+      "bytes": 45618,
+      "sha256": "414eee6ac3a7071ffe9ca1c3ecf57637ef57733071bea89fd6b7824a15ca4d72"
+    },
+    "model_backend": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/deepseek-v4-flash-0731-role-probe-20261115/model_backend.json",
+      "bytes": 6108,
+      "sha256": "4ef3db92a8875335120c883b7df39d52e22de29ecfd07c538492abfcfb5fb7b1"
+    },
+    "preflight": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/deepseek-v4-flash-0731-role-probe-20261115/preflight.json",
+      "bytes": 3812,
+      "sha256": "636752a3d9ffaae952d1e76e22d77242bcc37ad72e1d90c8bb743cb0eef57ef9"
+    },
+    "data_manifest": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/deepseek-v4-flash-0731-role-probe-20261115/data/manifest.json",
+      "bytes": 4406,
+      "sha256": "2ed63d4a8b152021e8183305aa5adfa4ccf12c21c375fe3bc8557f02e7968dba"
+    },
+    "run_config": {
+      "path": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/experiments/role-analysis/outputs/deepseek-v4-flash-0731-role-probe-20261115/config.json",
+      "bytes": 753,
+      "sha256": "8e6be5cf2b8877058513c0b99137fe544abfe1740360e47a40900eb573431d42"
+    }
+  },
+  "budget": {
+    "feature_dim": 8192,
+    "cache_dtype": "float32",
+    "rows": {
+      "fit": 449412,
+      "dev": 103271
+    },
+    "feature_cache_bytes": {
+      "fit": 14726332416,
+      "dev": 3383984128
+    },
+    "combined_feature_cache_bytes": 18110316544,
+    "gpu0_backbone_parameter_bytes": 40402805448,
+    "gpu0_post_preflight_allocated_bytes": 40460460032,
+    "gpu0_device_total_bytes": 85019328512,
+    "parameter_plus_cache_bytes": 58513121992,
+    "remaining_before_context_buffers_workspace_bytes": 26506206520,
+    "cache_copy_chunk_bytes": 268435456,
+    "training_batch_feature_bytes": 134217728,
+    "prediction_batch_feature_bytes": 268435456,
+    "largest_classifier_parameters": 2098693,
+    "largest_classifier_parameter_gradient_adam_two_moment_bytes": 33579088,
+    "classifiers_trained_sequentially": 7
+  },
+  "lifecycle_evidence": [
+    {
+      "file": "loader",
+      "lines": [
+        326,
+        339,
+        340,
+        341
+      ],
+      "finding": "Backbone forward is inference_mode, use_cache=False, output_hidden_states=False and output_attentions=False; no vocabulary logits."
+    },
+    {
+      "file": "loader",
+      "lines": [
+        382,
+        405,
+        407,
+        418,
+        424,
+        425,
+        432,
+        435
+      ],
+      "finding": "Captured selected features are copied to CPU FP16; pre-hooks return None and handles are removed in finally; matrix is a CPU NumPy array."
+    },
+    {
+      "file": "runner",
+      "lines": [
+        360,
+        361,
+        492,
+        494,
+        554,
+        561
+      ],
+      "finding": "Head-discovery CUDA cache is deleted and empty_cache called at discovery end; feature extraction returns CPU arrays and calls training after FIT+DEV extraction returns."
+    },
+    {
+      "file": "trainer",
+      "lines": [
+        361,
+        365,
+        366,
+        368,
+        544,
+        545,
+        546,
+        547
+      ],
+      "finding": "FIT/DEV each own one FP32 GPU cache; construction copies bounded 8192-row chunks, no second full-cache normalization tensor."
+    },
+    {
+      "file": "trainer",
+      "lines": [
+        549,
+        564,
+        565,
+        628,
+        667
+      ],
+      "finding": "Candidates run serially; optimizer only uses classifier parameters; best state is cloned to CPU; classifier and optimizer are deleted between candidates."
+    },
+    {
+      "file": "trainer",
+      "lines": [
+        371,
+        374,
+        376,
+        380,
+        387,
+        673
+      ],
+      "finding": "Prediction probabilities and NPZ exports return to CPU; training returns a JSON-compatible selection, not a GPU tensor or bank."
+    },
+    {
+      "file": "runner",
+      "lines": [
+        554,
+        561,
+        563,
+        564,
+        572,
+        579,
+        582
+      ],
+      "finding": "Backbone remains all-GPU during training and later TEST extraction. Explicit gc/empty_cache is after training before TEST, and finally after model deletion; there is no explicit extraction-to-training empty_cache."
+    }
+  ],
+  "allocator_evidence": {
+    "environment_overrides": [],
+    "local_documentation": "/scratch/wz55191/Github/prompt-injection-as-role-confusion/.venv/lib/python3.12/site-packages/torch/cuda/memory.py",
+    "documentation_lines": [
+      212,
+      218,
+      219,
+      272,
+      273
+    ],
+    "finding": "Unoccupied reserved cache is reusable by PyTorch. Failed cudaMalloc calls trigger cache flush and retry; empty_cache may help fragmentation but does not create additional logical PyTorch capacity."
+  },
+  "bounded_risks": [
+    "The FIT cache is one approximately 13.71 GiB allocation; live non-releasable split blocks could affect its allocation even though total logical capacity is sufficient.",
+    "No live allocated/reserved/inactive_split_bytes statistics were retrieved from the process, so high nvidia-smi usage is not classified as either retained activations or failure.",
+    "Classifier activations, CUDA contexts, BLAS workspaces and allocator rounding are additional to the exact parameter/cache counts; the logical remainder is approximately 24.69 GiB."
+  ],
+  "observation": {
+    "nvidia_smi_units": "MiB",
+    "nvidia_smi_columns": [
+      "index",
+      "memory.total",
+      "memory.used",
+      "memory.free"
+    ],
+    "nvidia_smi": "0, 81559, 77385, 3697\n1, 81559, 74513, 6569\n2, 81559, 67753, 13329\n3, 81559, 57811, 23271",
+    "note": "Includes the ongoing extraction workload and reserved memory, not a measure of live training allocations."
+  },
+  "recommendation": "Continue the existing process and observe the first cache allocations/training epoch. No source change or restart is justified solely by high reserved memory."
+}
