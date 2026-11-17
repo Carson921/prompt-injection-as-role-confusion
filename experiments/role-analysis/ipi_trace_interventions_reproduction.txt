@@ -210,6 +210,8 @@ All 41 tasks after actual pilot feedback
     --output "$IPI_OUT" --stage all --model "$IPI_MODEL" --max-steps 5 --max-new-tokens 4096 --worldsim-model openai/gpt-4.1
   "$IPI_RUN_PY" experiments/role-analysis/audit_ipi_trace_body_provenance.py \
     --output "$IPI_OUT" --stage all
+  "$IPI_RUN_PY" experiments/role-analysis/decode_ipi_benign_traces.py \
+    --output "$IPI_OUT" --model "$IPI_MODEL"
   "$IPI_RUN_PY" experiments/role-analysis/run_ipi_trace_interventions.py prepare \
     --output "$IPI_OUT" --stage all --model "$IPI_MODEL"
   "$IPI_RUN_PY" experiments/role-analysis/validate_ipi_trace_interventions.py \
@@ -272,3 +274,14 @@ union of present first-role bodies; each variant stores its manipulated body.
 The index gives exact paths/bytes/SHA and layer coverage. These are not hidden
 states for every token of the full conversation. Keep the original immutable
 source traces, collection records and stopping metadata alongside all readouts.
+
+Readable trace delivery
+-----------------------
+The CPU-only decoder above runs only after the complete 41-source manifest. It
+verifies the frozen tokenizer.json SHA, decodes every original ID sequence with
+skip_special_tokens=False, and exports sources/native-traces-readable.jsonl.
+The separate native-traces-readable-manifest.json binds source, collection,
+prepared, tokenizer and exporter hashes and checks all 41 identities, token
+counts, original-ID array digests and decoded text. These are display artifacts;
+never retokenize their text for inference. sources/traces.jsonl is unchanged and
+remains authoritative, including any uninterpreted opaque terminal suffix.

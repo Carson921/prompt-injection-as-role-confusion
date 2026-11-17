@@ -198,7 +198,20 @@ LINK = re.compile(r"(!?\[[^\]\n]*\])\((<[^>\n]+>|[^\s)]+)(\s+(?:\"[^\"]*\"|'[^']
 REFERENCE = re.compile(r"^(\s{0,3}\[[^\]\n]+\]:\s*)(<[^>\n]+>|\S+)(.*)$")
 
 
-def rewrite_markdown(text, document, root, selected, external):
+def repository_document(path, publication_root):
+    """Allow existing sibling docs files, with resolved paths inside this repo."""
+    if publication_root is None:
+        return None
+    repo = REPO.resolve()
+    docs, destination, candidate = (repo / "docs").resolve(), publication_root.resolve(), path.resolve()
+    if (not docs.is_relative_to(repo) or not destination.is_relative_to(docs)
+            or not candidate.is_relative_to(docs) or not candidate.is_relative_to(repo)
+            or candidate.is_relative_to(destination) or not candidate.is_file()):
+        return None
+    return candidate
+
+
+def rewrite_markdown(text, document, root, selected, external, *, publication_root=None, repository_links=None):
     """Rewrite actual links, excluding fenced and inline code examples."""
     changes = []
     prefixes = {str(root), str(root).replace("/scratch/", "/home/", 1)}
@@ -210,6 +223,8 @@ def rewrite_markdown(text, document, root, selected, external):
         raw_path, marker, fragment = original.partition("#")
         raw_path = unquote(raw_path)
         candidates = []
+        resolved = Path(raw_path).resolve() if raw_path.startswith("/") else (
+            root / PurePosixPath(document).parent / raw_path).resolve()
         if raw_path.startswith("/"):
             for prefix in prefixes:
                 if raw_path == prefix or raw_path.startswith(prefix + "/"):
@@ -220,7 +235,6 @@ def rewrite_markdown(text, document, root, selected, external):
             except ValueError:
                 pass
         else:
-            resolved = (root / PurePosixPath(document).parent / raw_path).resolve()
             if resolved.is_relative_to(root):
                 candidates.append(str(resolved.relative_to(root)))
             elif resolved.is_relative_to(REPO):
@@ -234,6 +248,18 @@ def rewrite_markdown(text, document, root, selected, external):
                 if converted != original:
                     changes.append(dict(original=original, published=converted, kind="portable_link"))
                 return converted
+        historical = repository_document(resolved, publication_root)
+        if historical is not None:
+            converted = os.path.relpath(historical, publication_root / PurePosixPath(document).parent)
+            converted = quote(converted, safe="/@:+~!$&'*,;=-._") + (marker + fragment if marker else "")
+            record = dict(document=document, original_target=original, published_target=converted,
+                          repository_path=str(historical.relative_to(REPO.resolve())),
+                          bytes=historical.stat().st_size, sha256=digest(historical))
+            if repository_links is not None:
+                repository_links.append(record)
+            if converted != original:
+                changes.append(dict(original=original, published=converted, kind="repository_document_link"))
+            return converted
         record = dict(document=document, target=original, reason="Local target is outside this portable subset")
         external.append(record)
         changes.append(dict(original=original, published=None, kind="external_cache_annotation"))
@@ -286,7 +312,7 @@ def verify_sources(root, selected, inventory):
                 "Sealed source checksum changed: " + relative)
 
 
-def generated_documents(root, delivery, selected, omitted, external):
+def generated_documents(root, delivery, selected, omitted, external, repository_links=()):
     stages = delivery["stages"]
     lines = ["# IPI Arena role-signal experiments · 17 November 2026", "",
              "[Chinese scientific report](REPORT.zh-CN.md) · [Reproduction instructions](REPRODUCE.txt) · "
@@ -347,6 +373,11 @@ def generated_documents(root, delivery, selected, omitted, external):
               "`SHA256SUMS` cover the complete external delivery. Use `publication-manifest.json` for this subset: "
               "copied Markdown links can differ from the original sealed documents. Reproduction instructions "
               "and non-Markdown loading examples retain historical paths and require local path configuration.", ""]
+    if repository_links:
+        lines += ["Links to earlier experiment reports refer to existing sibling directories under this "
+                  "repository's `docs` tree. Their resolved paths and hashes are verified during publication "
+                  "and recorded separately in the manifest. Moving this folder alone also requires retaining "
+                  "those referenced documentation directories.", ""]
     hidden = sum(value["bytes"] for relative, value in omitted.items()
                  if PurePosixPath(relative).parts[0] == "hiddenstates")
     reasons = {}
@@ -382,18 +413,26 @@ def generated_documents(root, delivery, selected, omitted, external):
             target = record["target"].replace("`", "&#96;")
             ext.append(f"- `{record['document']}` → `{target}`")
     else:
-        ext.append("All actual local Markdown link targets were available in the portable subset.")
+        ext.append("All actual local Markdown links resolve to bundled files or verified repository documentation.")
     return {"README.md": "\n".join(lines), "EXTERNAL-CACHE.md": "\n".join(ext) + "\n"}
 
 
-def validate_published_links(staging):
+def validate_published_links(staging, destination):
     for path in staging.rglob("*.md"):
         # The same parser skips code examples and identifies missing local targets.
         relative = str(path.relative_to(staging))
         available = {str(p.relative_to(staging)): None for p in staging.rglob("*") if p.is_file()}
         external = []
-        rewrite_markdown(path.read_text(encoding="utf-8"), relative, staging, available, external)
+        rewrite_markdown(path.read_text(encoding="utf-8"), relative, destination, available, external,
+                         publication_root=destination)
         require(not external, "Broken or external local published Markdown link: " + json.dumps(external))
+
+
+def verify_repository_links(repository_links, destination):
+    for record in repository_links:
+        path = repository_document(REPO / record["repository_path"], destination)
+        require(path is not None and path.stat().st_size == record["bytes"] and digest(path) == record["sha256"],
+                "Referenced repository documentation changed: " + record["repository_path"])
 
 
 def check_existing(destination):
@@ -431,7 +470,7 @@ def build(source, destination, dry_run=False):
     check_existing(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".ipi-publication-", dir=destination.parent) as temporary:
-        staging, entries, external = Path(temporary) / "bundle", {}, []
+        staging, entries, external, repository_links = Path(temporary) / "bundle", {}, [], []
         staging.mkdir()
         for relative in sorted(selected):
             original = source / relative
@@ -439,7 +478,8 @@ def build(source, destination, dry_run=False):
             target.parent.mkdir(parents=True, exist_ok=True)
             changes = []
             if original.suffix.lower() == ".md":
-                text, changes = rewrite_markdown(original.read_bytes().decode("utf-8"), relative, source, selected, external)
+                text, changes = rewrite_markdown(original.read_bytes().decode("utf-8"), relative, source, selected, external,
+                                                 publication_root=destination, repository_links=repository_links)
                 target.write_bytes(text.encode("utf-8"))
             else:
                 shutil.copyfile(original, target)
@@ -451,7 +491,7 @@ def build(source, destination, dry_run=False):
                     publication_sha256=published_sha, publication_bytes=target.stat().st_size,
                     copied_verbatim=published_sha == inventory[relative]["sha256"],
                     markdown_link_transformations=changes, selection_reason=selected[relative]["reason"])
-        for relative, text in generated_documents(source, delivery, selected, omitted, external).items():
+        for relative, text in generated_documents(source, delivery, selected, omitted, external, repository_links).items():
             require(relative not in entries, "Generated document would replace an original source artifact: " + relative)
             path = staging / relative
             path.write_text(text, encoding="utf-8")
@@ -459,6 +499,7 @@ def build(source, destination, dry_run=False):
                     publication_sha256=digest(path), publication_bytes=path.stat().st_size,
                     copied_verbatim=False, markdown_link_transformations=[], generated_by=str(Path(__file__).resolve()))
         verify_sources(source, selected, inventory)
+        verify_repository_links(repository_links, destination)
         manifest = dict(format_version=FORMAT, created_at_utc=datetime.now(timezone.utc).isoformat(),
                 scope="Portable subset of one sealed IPI no-payload continuation experiment",
                 source_root=str(source), source_status=delivery["status"], source_sealed_at_utc=delivery.get("sealed_at_utc"),
@@ -467,6 +508,7 @@ def build(source, destination, dry_run=False):
                 probe_sha256=delivery["probe_sha256"], stages=delivery["stages"],
                 builder_path=str(Path(__file__).resolve()), builder_sha256=digest(Path(__file__)),
                 files=entries, excluded_files=omitted, external_local_markdown_links=external,
+                repository_document_links=repository_links,
                 all_selected_sources_checksum_verified_before_copy=True,
                 all_selected_sources_checksum_reverified_after_copy=True,
                 strict_per_file_limit_bytes=LIMIT, hiddenstate_payloads_included=False, model_weight_shards_included=False,
@@ -475,7 +517,8 @@ def build(source, destination, dry_run=False):
                 file_count_including_manifest=len(entries) + 1,
                 payload_bytes_excluding_manifest=sum(value["publication_bytes"] for value in entries.values()))
         (staging / MANIFEST).write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        validate_published_links(staging)
+        validate_published_links(staging, destination)
+        verify_repository_links(repository_links, destination)
         # Only a verified previous publication can be replaced. Roll back if the
         # second rename fails; the external sealed source is never a rename target.
         check_existing(destination)
@@ -490,8 +533,9 @@ def build(source, destination, dry_run=False):
             raise
     summary.update(files=manifest["file_count_including_manifest"],
                    bytes=sum(path.stat().st_size for path in destination.rglob("*") if path.is_file()),
-                   local_links_rewritten=sum(change["kind"] == "portable_link" for value in entries.values()
+                   local_links_rewritten=sum(change["kind"] in {"portable_link", "repository_document_link"} for value in entries.values()
                                              for change in value["markdown_link_transformations"]),
+                   repository_document_links_preserved=len(repository_links),
                    excluded_local_links_annotated=len(external))
     print(json.dumps(summary))
     return summary
