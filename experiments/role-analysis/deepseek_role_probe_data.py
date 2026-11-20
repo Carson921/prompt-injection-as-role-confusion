@@ -25,15 +25,19 @@ import time
 BASE = Path(__file__).resolve().parent
 ORIGINAL = BASE / "outputs/c4-dolma3-single-agentdojo-mixed-2080ti-20261103"
 ARTICLE_META = BASE / "outputs/synthetic-agent-120b-20261026/final-v7/metadata/data/formal"
-OUTPUT = BASE / "outputs/deepseek-v4-flash-0731-role-probe-20261115"
+OUTPUT = BASE / "outputs/deepseek-v4-flash-0731-role-probe-devsys-20261119"
 MODEL = Path("/scratch/wz55191/Hugginface/DeepSeek-V4-Flash-0731")
 OLD_MODEL = Path("/scratch/wz55191/models/gpt-oss-120b")
 AGENTDOJO = Path("/scratch/wz55191/agentdojo-trace-source-20261112/full57_no_payload_first_occurrence_probe_v7_20261027")
 ROLES = ("system", "user", "cot", "assistant", "tool")
 SOURCE_ROLES = ("system", "developer", "user", "cot", "assistant", "tool")
-ROLE_MAPPING = {role: ("user" if role == "developer" else role) for role in SOURCE_ROLES}
+# GPT-OSS (Harmony) "developer" carries the application's instructions, which DeepSeek expresses as its system
+# prompt: developer bodies are rendered in the native system slot and labeled system.  The GPT-OSS "system" role
+# (model identity / channel boilerplate) has no DeepSeek counterpart: such records and messages are dropped.
+ROLE_MAPPING = {"developer": "system", "user": "user", "cot": "cot", "assistant": "assistant", "tool": "tool"}
+DROPPED_SOURCE_ROLES = ("system",)
 SPLITS = ("fit", "dev", "test")
-FORMAT_VERSION = "deepseek-native-role-inputs-v1"
+FORMAT_VERSION = "deepseek-native-role-inputs-v2-developer-as-system"
 
 
 def require(condition, message):
@@ -272,7 +276,7 @@ def tokenize_record(tokenizer, encoder, messages, fields, identity, *, max_token
             "native_prompt_sha256": sha(prompt), "messages_sha256": sha(messages)}
 
 
-def article_records(args, tokenizer, encoder, assignments):
+def article_records(args, tokenizer, encoder, assignments, dropped):
     """Reuse the historical article fragments, then retokenize natively."""
     import synthetic_agent_data as old
     from transformers import AutoTokenizer
@@ -292,6 +296,9 @@ def article_records(args, tokenizer, encoder, assignments):
             source_id = document["source_id"]
             native_role = old.SYMBOLS[old.balanced_block_choice("SDUCAT", document["source_ordinal"],
                          20261026, "single-role-v1", source)]
+            if native_role in DROPPED_SOURCE_ROLES:
+                dropped[assignments[cluster]] += 1
+                continue
             old_ids = old_tokenizer.encode(document["text"], add_special_tokens=False)
             rng = random.Random(int(old.sha(f"20261026:{source_id}:single")[:16], 16))
             body, fragment = old._extract_fragment(old_tokenizer, old_ids, rng, "single", 1.0)
@@ -303,7 +310,8 @@ def article_records(args, tokenizer, encoder, assignments):
                 index = 1
             else:
                 field, index = "content", 0
-                messages = [{"role": native_role, "content": body}]
+                # developer -> native system slot (render role "system"); the label follows ROLE_MAPPING
+                messages = [{"role": "system" if native_role == "developer" else native_role, "content": body}]
                 if native_role == "tool":
                     messages[0]["tool_call_id"] = source_id + "/single"
             event = source_id + "/single/r0/" + native_role
@@ -375,25 +383,32 @@ def agentdojo_records(args, tokenizer, encoder, assignments, audit):
         require(cluster in assignments, "Unknown original AgentDojo task")
         tasks.add(cluster)
         messages = [normalize_message(message) for message in request["normalized_messages"]]
+        audit["dropped_source_system_messages"] = audit.get("dropped_source_system_messages", 0) + sum(
+            message["role"] in DROPPED_SOURCE_ROLES for message in messages)
+        messages = [message for message in messages if message["role"] not in DROPPED_SOURCE_ROLES]
         if meta["call_index"] == 0:
             audit.setdefault("first_call_structure", []).append({"task": task,
                 "roles": [message["role"] for message in messages],
                 "content_characters": [len(message["content"]) for message in messages]})
-        instructions = next((message for message in messages if message["role"] in ("system", "developer")), None)
+        instructions = next((message for message in messages if message["role"] == "developer"), None)
         require(instructions is not None, "Task instructions are missing")
         instructions["tools"] = copy.deepcopy(request["tools"])
         response_index = len(messages)
         messages.append(normalize_message(request["response"]))
+        source_roles = [message["role"] for message in messages]
+        for message in messages:  # developer bodies are rendered in the native system slot
+            if message["role"] == "developer":
+                message["role"] = "system"
         fields = []
         for index, message in enumerate(messages):
-            source_role = message["role"]
-            require(source_role in SOURCE_ROLES, "Unexpected AgentDojo source role")
+            source_role = source_roles[index]
+            require(source_role in ROLE_MAPPING, "Unexpected AgentDojo source role")
             for field in ("content", "reasoning_content"):
                 body = message.get(field) or ""
                 if not body:
                     continue
                 role = "cot" if field == "reasoning_content" else source_role
-                event = body_event_id(task, message, field, body)
+                event = body_event_id(task, {**message, "role": source_role}, field, body)
                 signature = (role, sha(body))
                 if event in fingerprints:
                     require(fingerprints[event] == signature, f"Historical body changed for stable event {event}")
@@ -452,11 +467,12 @@ def prepare(args):
         "head_selection": "FIT only, with inner source-cluster split; DEV for classifier selection only",
         "test_policy": "No TEST head selection, scaler fit, candidate selection, or tuning; freeze selected probe before TEST evaluation",
         "role_mapping_evidence": {
-            "developer": "Official render_message emits the identical <｜User｜> prefix for developer/user; collapse to user",
+            "developer": "GPT-OSS developer = application instructions = DeepSeek system prompt: rendered with role system (native system slot, tools schema appended there) and labeled system",
+            "system": "GPT-OSS system (model identity/channel boilerplate) has no DeepSeek counterpart: article records assigned to it and any such message are dropped",
             "cot": "assistant.reasoning_content between native <think> and </think>",
             "tool": "Official merge_tool_messages embeds tool result bodies inside native user <tool_result> blocks",
             "documentation": str(args.model / "encoding/README.md"),
-            "caveat": "Developer is an internal search-agent input role, not a distinct model token or public API role"},
+            "caveat": "The official encoder would render role developer with the <｜User｜> prefix; that rendering is deliberately NOT used (v1 collapsed developer into user, which put AgentDojo system prompts into user turns)"},
         "agentdojo_adaptation": "Use normalized semantic task messages and official tools schemas; exclude GPT-OSS injected system identity/channel instructions and namespace serialization; no artificial system targets; cross-model teacher-forced replay"}
     if (root / "manifest.json").exists():
         previous = read(root / "manifest.json")
@@ -469,8 +485,9 @@ def prepare(args):
     streams = {split: (root / f"inputs-{split}.jsonl.part").open("w") for split in SPLITS}
     counts, roles, clusters, input_lengths = Counter(), Counter(), defaultdict(set), Counter()
     audit = {"status": "running"}
+    dropped = Counter()
     try:
-        for iterator in [article_records(args, tokenizer, encoder, assignments["c4_dolma3"]),
+        for iterator in [article_records(args, tokenizer, encoder, assignments["c4_dolma3"], dropped),
                          agentdojo_records(args, tokenizer, encoder, assignments["agentdojo"], audit)]:
             for record in iterator:
                 split, domain = record["split"], record["domain"]
@@ -490,7 +507,7 @@ def prepare(args):
     for split in SPLITS:
         require(all(roles[f"{split}/c4_dolma3/{role}"] for role in ROLES), "Article split missing a native role")
         (root / f"inputs-{split}.jsonl.part").replace(root / f"inputs-{split}.jsonl")
-    audit.update(status="passed", counts=dict(counts), targets_by_split_domain_role=dict(roles),
+    audit.update(status="passed", counts=dict(counts), dropped_source_system_article_records=dict(dropped), targets_by_split_domain_role=dict(roles),
                  maximum_input_tokens=dict(input_lengths), cross_split_cluster_overlap=overlap,
                  present_roles={f"{split}/{domain}": [role for role in ROLES if roles[f"{split}/{domain}/{role}"]]
                                 for split in SPLITS for domain in ("c4_dolma3", "agentdojo")})

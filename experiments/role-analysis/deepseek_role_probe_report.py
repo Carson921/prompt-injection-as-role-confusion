@@ -353,7 +353,10 @@ def audit_run(output):
               "pending_artifacts": [],
               "validator_sha256": sha(__file__),
               "checks": [], "artifact_sha256": {}, "metrics": None, "limitations": [
-                  "五分类标签为 system/user/cot/assistant/tool；developer 按官方编码归并到 user。",
+                  ("五分类标签为 system/user/cot/assistant/tool；GPT-OSS 的 developer 映射为 system（渲染在原生 system 位置），GPT-OSS 的 system 丢弃。"
+                   if (root / "data/manifest.json").is_file()
+                   and read(root / "data/manifest.json")["protocol"]["source_role_mapping"].get("developer") == "system"
+                   else "五分类标签为 system/user/cot/assistant/tool；developer 按官方编码归并到 user。"),
                   "与 GPT-OSS 六分类指标比较时，需考虑标签空间和分词差异。",
                   "AgentDojo 使用已有 GPT-OSS 轨迹做跨模型 teacher-forced replay；本结果不衡量新的 DeepSeek agent rollout 或攻击成功率。",
                   "全 GPU 审计覆盖用于探针的完整 43 层主干；Transformers 不加载检查点中可选的 MTP speculative-decoding 辅助模块。",
@@ -433,7 +436,8 @@ def audit_run(output):
 
     def schema_check():
         require(tuple(data["roles"]) == tuple(feature_manifest["roles"]) == tuple(probe["metadata"]["roles"]) == ROLES, "Expected five native DeepSeek roles")
-        require(data["protocol"]["source_role_mapping"]["developer"] == "user", "Developer/user merge is not declared")
+        # v1 runs merged developer into user; v2 (developer-as-system) maps developer to system and drops GPT-OSS system
+        require(data["protocol"]["source_role_mapping"]["developer"] in ("user", "system"), "Developer mapping is not declared")
         require("teacher-forced" in data["protocol"]["agentdojo_adaptation"] and "cross-model" in data["protocol"]["agentdojo_adaptation"],
                 "Cross-model teacher-forced replay policy is not declared")
         require(data_audit["status"] == "passed" and not any(data_audit["cross_split_cluster_overlap"].values()), "Data audit reports cluster leakage")
@@ -453,7 +457,8 @@ def audit_run(output):
         require(heads["signature"]["config_sha256"] == object_sha(config), "Head scan configuration differs")
         for name, digest in data["files_sha256"].items():
             require(sha(safe_path(root / "data", name)) == digest, f"Changed prepared native data: {name}")
-        return {"roles": list(ROLES), "head_count": 16, "head_dim": 512, "feature_dim": 8192, "developer_maps_to": "user"}
+        return {"roles": list(ROLES), "head_count": 16, "head_dim": 512, "feature_dim": 8192,
+                "developer_maps_to": data["protocol"]["source_role_mapping"]["developer"]}
 
     check("native_data_and_feature_schema", schema_check)
 

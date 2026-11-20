@@ -135,6 +135,8 @@ def run_episode(request, behavior, target, worldsim, output, identity):
                                         content=response['content'], reasoning=response['reasoning'],
                                         tool_calls=response['tool_calls'], worldsim=[]))
             assistant = dict(role='assistant', content=response['content'])
+            if getattr(target, 'keep_reasoning', False) and response.get('reasoning'):
+                assistant['reasoning_content'] = response['reasoning']  # DeepSeek keeps reasoning across tool turns
             if calls:
                 assistant['tool_calls'] = [dict(id=c.id, type='function', function=dict(name=c.name, arguments=json.dumps(c.arguments)))
                                            for c in calls]
@@ -199,7 +201,7 @@ def summarize(output, protocol):
                                           asr=(sum(r['success'] for r in sub) / len(sub)) if sub else None)
         supplementary = [r for r in rows if not r['primary'] and r['status'] == 'complete']
         summary['conditions'][condition] = dict(
-            p_user_agentdojo=spec['p_user_agentdojo'], asr_agentdojo=spec['asr_agentdojo'],
+            p_user_agentdojo=spec.get('p_user_agentdojo'), asr_agentdojo=spec.get('asr_agentdojo'),
             scheduled=sum(1 for c in protocol['rows'] if c['condition'] == condition and c['primary']),
             complete=len(done), errors=sum(r['status'] == 'error' for r in primary), successes=successes,
             asr=successes / len(done) if done else None,

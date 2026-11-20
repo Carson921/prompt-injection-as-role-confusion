@@ -21,12 +21,18 @@ class NativeDataTests(unittest.TestCase):
             raise unittest.SkipTest("Official downloaded DeepSeek encoder is unavailable")
         cls.encoder = data.load_encoder(data.MODEL)
 
-    def test_developer_and_user_are_identically_encoded(self):
+    def test_developer_maps_to_system_and_source_system_is_dropped(self):
+        # The official encoder would render role developer exactly like user; that rendering is not used:
+        # developer bodies go to the native system slot and are labeled system, GPT-OSS system is dropped.
         kwargs = dict(thinking_mode="thinking", drop_thinking=False, reasoning_effort="low")
         developer = self.encoder.encode_messages([{"role": "developer", "content": "Same ordinary body."}], **kwargs)
         user = self.encoder.encode_messages([{"role": "user", "content": "Same ordinary body."}], **kwargs)
+        system = self.encoder.encode_messages([{"role": "system", "content": "Same ordinary body."}], **kwargs)
         self.assertEqual(developer, user)
-        self.assertEqual(data.ROLE_MAPPING["developer"], "user")
+        self.assertNotEqual(system, user)
+        self.assertEqual(data.ROLE_MAPPING["developer"], "system")
+        self.assertNotIn("system", data.ROLE_MAPPING)
+        self.assertEqual(data.DROPPED_SOURCE_ROLES, ("system",))
         self.assertNotIn("developer", data.ROLES)
 
     def test_span_transfer_survives_tool_message_merging(self):
