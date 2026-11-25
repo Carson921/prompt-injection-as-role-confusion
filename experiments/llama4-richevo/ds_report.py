@@ -16,7 +16,8 @@ from ds_contexts import first_exposure
 HERE = Path(__file__).resolve().parent
 OUT = HERE / 'outputs'
 EVO = OUT / 'l4evo-20261125'
-RUNS = [OUT / 'baseline-20261125', OUT / 'reference2-20261125', OUT / 'optimized-20261125', OUT / 'graded-20261125']
+RUNS = [OUT / 'baseline-20261125', OUT / 'reference2-20261125', OUT / 'optimized-20261125', OUT / 'graded-20261125',
+        OUT / 'decile-20261125']
 RERUN = {'opt_ad_top_rerun': 'opt_ad_top'}  # same template run twice: left out of correlations, compared case by case
 PAIRS = [('opt_ad_top', 'delim_close_user'), ('opt_ad_top', 'delim_close_assistant_user'), ('opt_ad_top', 'delim_oneline_assistant_user'),
          ('opt_ad_top', 'delim_oneline_user'), ('opt_ad_top', 'near_simple'), ('opt_ad_top', 'near_oneline'), ('opt_ad_top', 'original'),
@@ -151,8 +152,43 @@ def main():
             r3, p3 = spearman([data['panel'][n][bench] for n in graded], [asr[n][bench]['success'] / asr[n][bench]['n'] for n in graded])
             line += f'; graded set only ({len(graded)}): {r3:.3f} (p={p3:.3g})'
             data['correlation'][bench + '_graded'] = dict(spearman=r3, p=p3, n=len(graded))
+        # decile set: one searched candidate per P(user) bin; "own" = the ten candidates of this benchmark's own search
+        for label, members in (('decile set', [n for n in names if n.startswith('bin_')]),
+                               ('decile set, own search', [n for n in names if n.startswith('bin_') and conditions[n]['optimized_for'] == bench]),
+                               ('graded + decile sets', [n for n in names if n.startswith(('grade_', 'bin_'))])):
+            if len(members) > 3:
+                r4, p4 = spearman([data['panel'][n][bench] for n in members], [asr[n][bench]['success'] / asr[n][bench]['n'] for n in members])
+                line += f'; {label} ({len(members)}): {r4:.3f} (p={p4:.3g})'
+                data['correlation'][bench + '_' + label.replace(',', '').replace(' + ', '_').replace(' ', '_')] = dict(spearman=r4, p=p4, n=len(members))
         print(line)
     print()
+
+    decile = [n for n in conditions if n.startswith('bin_')]
+    if decile and all(asr[n]['agentdojo'] and asr[n]['ipi'] for n in decile):
+        print('## decile set: one searched candidate per surrogate P(user) bin')
+        rows = []
+        for n in decile:
+            c, own = conditions[n], conditions[n]['optimized_for']
+            other = 'ipi' if own == 'agentdojo' else 'agentdojo'
+            a = asr[n]
+            rows.append([n, own, f"[{c['bin'][0]:.1f}, {c['bin'][1]:.1f})", c['bin_candidates'], f"{c['evaluation_index']}/{c['evaluations']}", c['wrapper_tokens'],
+                         f"{c['fast_fitness']:.3f}", f3(data['panel'][n][own]), pct(a[own]['success'], a[own]['n']),
+                         pct(a['agentdojo']['success'], a['agentdojo']['exposed']) if own == 'agentdojo' and a['agentdojo']['exposed'] else '-',
+                         f3(data['panel'][n][other]), pct(a[other]['success'], a[other]['n'])])
+        table(['condition', 'search', 'bin', 'candidates in bin', 'evaluation', 'tokens', 'surrogate P(user)', 'exact P(user), own panel', 'ASR, own benchmark',
+               'ASR among episodes that reached the injection', 'exact P(user), other panel', 'ASR, other benchmark'], rows)
+        data['decile'] = rows
+        # every mechanically chosen searched candidate (graded + decile sets), binned by the exact panel P(user) of the benchmark
+        print('## graded + decile sets: ASR by exact panel P(user) decile (templates pooled)')
+        chosen, rows = [n for n in conditions if n.startswith(('grade_', 'bin_'))], []
+        for bench in ('agentdojo', 'ipi'):
+            for k in range(10):
+                members = [n for n in chosen if data['panel'][n][bench] is not None and (k / 10 <= data['panel'][n][bench] < (k + 1) / 10 or (k == 9 and data['panel'][n][bench] >= 1))]
+                rates = [100 * asr[n][bench]['success'] / asr[n][bench]['n'] for n in members]
+                s, t = sum(asr[n][bench]['success'] for n in members), sum(asr[n][bench]['n'] for n in members)
+                rows.append([bench, f'[{k / 10:.1f}, {(k + 1) / 10:.1f})', len(members), pct(s, t) if t else '-', f'{min(rates):.1f}% - {max(rates):.1f}%' if rates else '-'])
+        table(['benchmark', 'exact P(user) bin', 'templates', 'pooled ASR', 'lowest - highest template'], rows)
+        data['chosen_deciles'] = rows
 
     graded = [n for n in conditions if n.startswith('grade_')]
     if graded and all(asr[n]['agentdojo'] and asr[n]['ipi'] for n in graded):

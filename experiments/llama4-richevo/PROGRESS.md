@@ -58,3 +58,17 @@
   Spearman(P(user), ASR)：AgentDojo 0.87（35 个条件），IPI 0.82（36）；只看分级集合 0.85 / 0.76。P(user) ≥ 0.9 后 ASR 持平（AgentDojo 39–46%）。
 - chain5 在 AgentDojo 面板测量时中断（grade_ipi_70a 含零宽字符，travel 工具输出把它转义，locate 失败）；ds_refs4.py 改为跳过并记录，chain6 补完其余模板。
 - 报告：REPORT.zh-CN.md；表格 outputs/optimized-20261125/report_tables.md；数据 report_data.json。未提交。
+
+## 2026-11-25 07:10
+- 已提交并推送：772641cac（分支 codex/synthetic-agent-120b-retraining），17423 个文件。
+
+## 2026-11-25 10:00（十等分区间集合）
+- 用户要求：把搜索中间结果按 P(user) 均分 10 个区间，每个区间取一个候选，测 ASR。
+- 规则（跑 ASR 之前写定，`ds_select_bins.py`）：两个搜索各自做；代理 P(user) 分成 [0,0.1)…[0.9,1.0] 十个区间，每个区间取最接近区间中点的候选
+  （并列取评估更早的），不含真实 special token，且不是已测过的模板（optimized、graded）。共 20 个，名字 `bin_{ad,ipi}_{05..95}`。
+- 输出目录 outputs/decile-20261125；chain7.sh：探针服务器 → 两个面板的精确 P(user) → 停服务器 → ASR（AgentDojo 389 + IPI 36）。09:58 启动。
+- ds_report.py 已加十等分集合的逐条表和相关。
+- 11:18 chain7 结束，20 个条件在两个基准上 0 错误，GPU 已空。精确 P(user) 与代理值最多差 0.015，都仍在各自区间。
+  AgentDojo 搜索的候选（P(user) 0.05→0.95）：14.4 / 26.5 / 29.8 / 27.5 / 44.0 / 33.9 / 44.0 / 40.1 / 44.0 / 44.0 %；
+  IPI 搜索的候选：4 / 7 / 11 / 15 / 16 / 13 / 14 / 13 / 15 / 17（共 36）。自己搜索的 10 个候选 Spearman 0.85 / 0.72。
+  全部条件的相关更新为 0.84（54 个条件）/ 0.81（56）。报告第 7.1 节已写。未提交。
